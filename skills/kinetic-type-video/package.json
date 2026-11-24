@@ -1,0 +1,10 @@
+{
+  "name": "kinetic-type-video-work",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@fontsource/baloo-bhaijaan-2": "^5.2.5",
+    "@fontsource/ibm-plex-sans-arabic": "^5.2.5",
+    "playwright": "^1.57.0"
+  }
+}

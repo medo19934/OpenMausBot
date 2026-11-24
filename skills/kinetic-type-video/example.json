@@ -1,0 +1,40 @@
+{
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "dir": "rtl",
+  "audio": { "voice": "vo.mp3" },
+  "footer": { "text": "ليش الفيديو القصير\nيمسك الانتباه", "scenes": [0, 1] },
+  "scenes": [
+    { "bg": "cream", "layout": "upper", "top": 0.14, "items": [
+      { "type": "badge", "icon": "eye", "at": "#hook-0.15" },
+      { "id": "hook", "text": "ليش تكمل\nالفيديو *للآخر*؟", "size": "m" }
+    ] },
+    { "bg": "ink", "enter": "push-right", "items": [
+      { "text": "لان", "size": "s" },
+      { "text": "أول ثانيتين", "size": "xl", "font": "display", "reveal": "pop" }
+    ] },
+    { "bg": "ink", "items": [
+      { "text": "تقرر", "size": "m" },
+      { "id": "stay", "text": "*تكمل*\nولا تسحب", "size": "l", "font": "display", "select": { "from": 0, "to": 0, "at": "#stay.end+0.3" } }
+    ] },
+    { "bg": "cream", "layout": "upper", "top": 0.16, "items": [
+      { "text": "والسر", "size": "m" },
+      { "type": "checklist", "size": 52, "items": [ { "text": "سؤال يفتح فضول" }, { "text": "كلمة وحدة مهمة" }, { "text": "وإيقاع ما يوقف" } ] }
+    ] },
+    { "bg": "ink", "enter": "push-left", "exit": "blur", "items": [
+      { "id": "fade", "text": "غيرها\nبينسى مع الوقت.", "size": "m" },
+      { "type": "meter", "at": "#fade.0", "fill": [["#fade.0", 1], ["#fade.end+0.5", 0]] }
+    ] },
+    { "bg": "blue", "items": [
+      { "type": "pill", "text": "وهنا نقول", "at": "#close-0.25" },
+      { "id": "close", "text": "الناس تتذكر\nاللي *حسته*", "size": "l", "font": "display", "reveal": "pop" }
+    ] },
+    { "bg": "cream", "enter": "push-right", "items": [
+      { "id": "me", "text": "انا *اسمك*", "size": "xl", "font": "display" },
+      { "text": "وصف قصير لك", "size": "m" },
+      { "type": "gap", "h": 16 },
+      { "type": "cta", "text": "تابعني وشوف البايو", "at": "#me.end+0.6" }
+    ] }
+  ]
+}
