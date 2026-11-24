@@ -1,0 +1,158 @@
+<style>
+  .card { background: #fff; border-radius: 34px; box-shadow: inset 0 0 0 1px var(--line); }
+  .num { font-variant-numeric: tabular-nums; }
+  .latin { direction: ltr; font-family: var(--text); }
+  .muted { color: rgba(17,17,17,.48); }
+
+  .clocks { width: 600px; padding: 30px 34px; direction: rtl; }
+  .clock { display: flex; align-items: center; gap: 22px; padding: 16px 0; }
+  .clock + .clock { border-top: 1px solid var(--line); }
+  .clock .ic { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+  .clock .city { font-weight: 700; font-size: 34px; line-height: 1.1; }
+  .clock .zone { font-size: 20px; margin-top: 4px; }
+  .clock .time { margin-inline-start: auto; font-weight: 700; font-size: 74px; letter-spacing: -1px; line-height: 1; }
+  .gapchip { margin-top: 14px; display: inline-flex; align-items: center; gap: 10px; background: rgba(37,52,147,.08); color: var(--blue); font-weight: 700; font-size: 22px; padding: 8px 18px; border-radius: 999px; }
+
+  .laptop { width: 660px; padding: 0 36px; }
+  .lid { background: #0d0d0e; border-radius: 26px 26px 0 0; padding: 18px 18px 22px; box-shadow: inset 0 0 0 3px #2b2b2d; }
+  .screen { background: #F7F4F0; border-radius: 10px; height: 372px; overflow: hidden; direction: ltr; }
+  .bar { height: 40px; background: #ECE6DF; display: flex; align-items: center; gap: 8px; padding: 0 14px; }
+  .bar i { width: 12px; height: 12px; border-radius: 50%; background: #d3cbc2; display: block; }
+  .url { margin-left: 14px; flex: 1; height: 24px; border-radius: 8px; background: #fff; font-size: 13px; color: #8a847d; display: flex; align-items: center; padding: 0 10px; }
+  .search { margin: 18px 20px 12px; display: flex; gap: 10px; }
+  .search .q { flex: 1; height: 46px; border-radius: 12px; background: #fff; box-shadow: inset 0 0 0 1.5px var(--blue); display: flex; align-items: center; padding: 0 14px; font-size: 18px; font-weight: 600; }
+  .search .go { width: 98px; border-radius: 12px; background: var(--blue); color: #fff; font-weight: 700; font-size: 16px; display: grid; place-items: center; }
+  .job { margin: 0 20px 10px; background: #fff; border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; box-shadow: inset 0 0 0 1px var(--line); }
+  .job.hit { box-shadow: inset 0 0 0 2px var(--periwinkle), 0 10px 24px -12px rgba(87,109,245,.6); }
+  .job .logo { width: 38px; height: 38px; border-radius: 10px; background: var(--ink); flex: none; display: grid; place-items: center; }
+  .job b { display: block; font-size: 16px; }
+  .job span { font-size: 13px; }
+  .job .tag { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--blue); background: rgba(37,52,147,.09); padding: 4px 10px; border-radius: 999px; }
+  .base { height: 26px; background: linear-gradient(#d9d5d1, #b9b4ae); border-radius: 0 0 22px 22px; margin: 0 -34px; position: relative; }
+  .base::after { content: ""; position: absolute; left: 50%; top: 0; width: 120px; height: 10px; transform: translateX(-50%); background: #a9a39c; border-radius: 0 0 10px 10px; }
+
+  .notif { width: 640px; padding: 22px 24px; border-radius: 34px; background: rgba(255,255,255,.96); direction: ltr; display: flex; gap: 18px; align-items: center; box-shadow: inset 0 0 0 1px var(--line); }
+  .notif .app { width: 70px; height: 70px; border-radius: 18px; background: var(--blue); display: grid; place-items: center; flex: none; }
+  .notif .top { display: flex; font-size: 16px; font-weight: 600; letter-spacing: .5px; }
+  .notif .top .t { margin-left: auto; font-weight: 500; }
+  .notif .title { font-size: 23px; font-weight: 700; margin-top: 2px; }
+  .notif .body { font-size: 19px; margin-top: 2px; }
+
+  .board { width: 640px; overflow: hidden; direction: ltr; }
+  .board .head { background: var(--ink); color: #fff; padding: 22px 26px; display: flex; align-items: center; gap: 12px; }
+  .board .head b { font-size: 26px; }
+  .live { margin-left: auto; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #b9c3ff; }
+  .live i { width: 9px; height: 9px; border-radius: 50%; background: #39d98a; box-shadow: 0 0 0 5px rgba(57,217,138,.18); }
+  .chips { display: flex; gap: 8px; padding: 16px 22px 8px; }
+  .chips span { font-size: 15px; font-weight: 600; padding: 7px 14px; border-radius: 999px; background: #F2E9E0; }
+  .chips span.on { background: var(--blue); color: #fff; }
+  .row { display: grid; grid-template-columns: 1fr 74px 86px; align-items: center; gap: 10px; margin: 8px 16px; padding: 14px 14px; border-radius: 16px; }
+  .row + .row { border-top: 1px solid var(--line); border-radius: 0 0 16px 16px; }
+  .row .lane { font-size: 18px; font-weight: 700; }
+  .row .lane small { display: block; font-size: 13px; font-weight: 500; margin-top: 2px; }
+  .row .mi { font-size: 16px; text-align: right; }
+  .row .rate { font-size: 18px; font-weight: 700; text-align: right; }
+  .row.booked { background: rgba(87,109,245,.1); border: none; box-shadow: inset 0 0 0 2px var(--periwinkle); }
+  .row.booked + .row { border-top: none; }
+  .booked-tag { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; font-size: 12px; font-weight: 700; color: #fff; background: var(--periwinkle); padding: 3px 9px; border-radius: 999px; vertical-align: middle; }
+
+  .route { width: 600px; overflow: hidden; direction: ltr; }
+  .route .map { height: 330px; background: #ECE4DA; position: relative; }
+  .route .foot { display: flex; gap: 10px; padding: 18px 22px; align-items: center; }
+  .route .foot div { flex: 1; }
+  .route .foot b { display: block; font-size: 24px; }
+  .route .foot span { font-size: 14px; }
+  .ontime { flex: none !important; font-size: 15px; font-weight: 700; color: #138a52; background: rgba(57,217,138,.16); padding: 8px 14px; border-radius: 999px; }
+
+  .comment { width: 640px; padding: 22px 24px 24px; direction: rtl; }
+  .comment .h { font-size: 22px; font-weight: 700; text-align: center; padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+  .comment .line { display: flex; align-items: center; gap: 14px; }
+  .comment .av { width: 58px; height: 58px; border-radius: 50%; background: #F2E9E0; display: grid; place-items: center; flex: none; }
+  .comment .in { flex: 1; height: 62px; border-radius: 999px; box-shadow: inset 0 0 0 1.5px rgba(17,17,17,.15); display: flex; align-items: center; padding: 0 24px; font-size: 28px; font-weight: 700; }
+  .caret { width: 3px; height: 32px; background: var(--blue); margin-inline-start: 4px; border-radius: 2px; }
+  .comment .send { width: 62px; height: 62px; border-radius: 50%; background: var(--blue); display: grid; place-items: center; flex: none; }
+</style>
+
+<div data-mockup="clocks" class="card clocks">
+  <div class="clock">
+    <div class="ic" style="background:#111"><svg width="32" height="32" viewBox="0 0 24 24" fill="#F2E9E0"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg></div>
+    <div><div class="city">دبي</div><div class="zone muted latin num">GMT+4</div></div>
+    <div class="time num latin">21:00</div>
+  </div>
+  <div class="clock">
+    <div class="ic" style="background:#FFE7B8"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#E08A00" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2" fill="#F5A623" stroke="none"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg></div>
+    <div><div class="city">تكساس</div><div class="zone muted latin num">GMT−6</div></div>
+    <div class="time num latin">11:00</div>
+  </div>
+  <div class="gapchip">فرق التوقيت ١٠ ساعات</div>
+</div>
+
+<div data-mockup="laptop" class="laptop">
+  <div class="lid"><div class="screen">
+    <div class="bar"><i></i><i></i><i></i><div class="url">jobs.example.com/search?q=remote+dispatcher</div></div>
+    <div class="search"><div class="q">Remote truck dispatcher</div><div class="go">Search</div></div>
+    <div class="job hit"><div class="logo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="17.5" r="1.8" fill="#111"/><circle cx="17" cy="17.5" r="1.8" fill="#111"/></svg></div><div><b>Truck Dispatcher</b><span class="muted">US freight company · Remote</span></div><div class="tag">Remote</div></div>
+    <div class="job"><div class="logo" style="background:#2A9D8F"></div><div><b>Logistics Coordinator</b><span class="muted">Remote · Full-time</span></div><div class="tag">Remote</div></div>
+    <div class="job"><div class="logo" style="background:#F4A261"></div><div><b>Load Planner</b><span class="muted">Remote · Night shift</span></div><div class="tag">Remote</div></div>
+  </div></div>
+  <div class="base"></div>
+</div>
+
+<div data-mockup="notif" class="notif">
+  <div class="app"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linejoin="round"><path d="M2.5 6.5h11v9.5h-11zM13.5 9.5h4.2l3.3 3.4v3.1h-7.5z"/><circle cx="6.5" cy="17.4" r="1.9" fill="#253493"/><circle cx="17.2" cy="17.4" r="1.9" fill="#253493"/></svg></div>
+  <div style="flex:1">
+    <div class="top muted">DISPATCH<span class="t">now</span></div>
+    <div class="title">Load booked ✓</div>
+    <div class="body muted num">Dallas, TX → Atlanta, GA · 781 mi</div>
+  </div>
+</div>
+
+<div data-mockup="board" class="card board">
+  <div class="head"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M9 9v11"/></svg><b>Load Board</b><div class="live"><i></i>Live</div></div>
+  <div class="chips"><span class="on">Dry Van</span><span>Reefer</span><span>Flatbed</span><span>Texas</span></div>
+  <div class="row"><div class="lane">Houston, TX → Memphis, TN<small class="muted">Pickup today · 42,000 lb</small></div><div class="mi muted num">586 mi</div><div class="rate num">$2.31/mi</div></div>
+  <div class="row booked"><div class="lane">Dallas, TX → Atlanta, GA<span class="booked-tag">✓ Booked</span><small class="muted">Pickup 08:00 · 38,500 lb</small></div><div class="mi muted num">781 mi</div><div class="rate num">$2.45/mi</div></div>
+  <div class="row"><div class="lane">Chicago, IL → Nashville, TN<small class="muted">Pickup tomorrow · 40,000 lb</small></div><div class="mi muted num">474 mi</div><div class="rate num">$2.62/mi</div></div>
+  <div class="row"><div class="lane">Phoenix, AZ → Denver, CO<small class="muted">Pickup Fri · 36,000 lb</small></div><div class="mi muted num">821 mi</div><div class="rate num">$2.18/mi</div></div>
+</div>
+
+<div data-mockup="route" class="card route">
+  <div class="map">
+    <svg width="600" height="330" viewBox="0 0 600 330">
+      <g fill="none" stroke="#fff" stroke-linecap="round">
+        <path d="M-20 80 C120 60 200 120 320 100 S520 40 640 70" stroke-width="10"/>
+        <path d="M-20 250 C100 230 220 280 360 240 S540 200 640 230" stroke-width="10"/>
+        <path d="M150 -20 C170 100 120 200 160 360" stroke-width="7"/>
+        <path d="M430 -20 C410 120 470 220 440 360" stroke-width="7"/>
+        <path d="M-20 170 L640 160" stroke-width="5" stroke="#f7f2ec"/>
+      </g>
+      <path d="M95 245 C200 230 230 140 330 150 S470 120 515 85" fill="none" stroke="#253493" stroke-width="9" stroke-linecap="round"/>
+      <path d="M95 245 C200 230 230 140 330 150 S470 120 515 85" fill="none" stroke="#9fb0ff" stroke-width="3" stroke-dasharray="2 14" stroke-linecap="round"/>
+      <circle cx="95" cy="245" r="15" fill="#fff" stroke="#253493" stroke-width="6"/>
+      <path d="M515 52 c-16 0 -27 12 -27 26 0 20 27 42 27 42 s27 -22 27 -42 c0 -14 -11 -26 -27 -26z" fill="#253493"/>
+      <circle cx="515" cy="78" r="9" fill="#fff"/>
+      <g transform="translate(300 128)">
+        <circle r="27" fill="#fff"/><circle r="27" fill="none" stroke="rgba(0,0,0,.08)"/>
+        <g transform="translate(-14 -13) scale(1.2)" fill="none" stroke="#111" stroke-width="1.9" stroke-linejoin="round"><path d="M2 6h12v9H2zM14 9h4.5L22 12.5V15h-8z"/><circle cx="6" cy="16.6" r="1.8" fill="#fff"/><circle cx="17.5" cy="16.6" r="1.8" fill="#fff"/></g>
+      </g>
+      <g font-family="IBM Plex Sans Arabic" font-weight="700" font-size="19" fill="#111">
+        <rect x="40" y="268" width="122" height="34" rx="17" fill="#fff"/><text x="101" y="291" text-anchor="middle">Dallas, TX</text>
+        <rect x="440" y="134" width="136" height="34" rx="17" fill="#fff"/><text x="508" y="157" text-anchor="middle">Atlanta, GA</text>
+      </g>
+    </svg>
+  </div>
+  <div class="foot">
+    <div><b class="num">781 mi</b><span class="muted">Distance</span></div>
+    <div><b class="num">11h 40m</b><span class="muted">ETA</span></div>
+    <div class="ontime">● On time</div>
+  </div>
+</div>
+
+<div data-mockup="comment" class="card comment">
+  <div class="h">التعليقات</div>
+  <div class="line">
+    <div class="av"><svg width="30" height="30" viewBox="0 0 24 24" fill="#253493"><circle cx="12" cy="8.5" r="4.2"/><path d="M3.8 20.5c1.2-4 4.4-6 8.2-6s7 2 8.2 6z"/></svg></div>
+    <div class="in">مهتم<span class="caret"></span></div>
+    <div class="send"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></div>
+  </div>
+</div>

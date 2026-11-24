@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { cpus } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { fontCss, launch } from "./browser.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -32,62 +32,17 @@ const stills = flag("stills");
 const range = flag("range");
 const workers = Math.max(1, Number(flag("workers", String(Math.min(4, Math.max(1, cpus().length - 1))))));
 
-const load = (name) => {
-  for (const from of [specDir, process.cwd(), HERE]) {
-    try {
-      return createRequire(join(from, "noop.js"))(name);
-    } catch {}
-  }
-  throw new Error(`Cannot find ${name}. Run: npm install ${name} (in ${specDir})`);
-};
-
 function run(cmd, argv, opts = {}) {
   const r = spawnSync(cmd, argv, { encoding: "utf8", maxBuffer: 1 << 26, ...opts });
   if (r.status !== 0) throw new Error(`${cmd} failed:\n${(r.stderr || "").slice(-3000)}`);
   return r;
 }
 
-function slug(family) {
-  return family.toLowerCase().replace(/\s+/g, "-");
-}
-
-function fontCss() {
-  const fonts = {
-    text: { family: "IBM Plex Sans Arabic", weights: [500, 600, 700] },
-    display: { family: "Baloo Bhaijaan 2", weights: [700, 800] },
-    ...(spec.fonts ?? {}),
-  };
-  let css = "";
-  for (const f of Object.values(fonts)) {
-    if (f.files) {
-      for (const [weight, file] of Object.entries(f.files)) {
-        css += `@font-face{font-family:"${f.family}";font-weight:${weight};font-display:block;src:url("${pathToFileURL(resolve(specDir, file)).href}")}\n`;
-      }
-      continue;
-    }
-    const pkg = `@fontsource/${slug(f.family)}`;
-    let pkgDir = null;
-    for (const from of [specDir, process.cwd(), HERE]) {
-      try {
-        pkgDir = dirname(createRequire(join(from, "noop.js")).resolve(`${pkg}/package.json`));
-        break;
-      } catch {}
-    }
-    if (!pkgDir) throw new Error(`Font "${f.family}" not found. Run: npm install ${pkg}  (or give fonts.<role>.files)`);
-    for (const w of f.weights ?? [400, 700]) {
-      const file = join(pkgDir, `${w}.css`);
-      if (!existsSync(file)) throw new Error(`${pkg} has no weight ${w}`);
-      css += readFileSync(file, "utf8").replace(/url\(\.\/files\//g, `url(${pathToFileURL(join(pkgDir, "files")).href}/`).replace(/font-display:\s*swap/g, "font-display: block");
-    }
-  }
-  return css;
-}
-
 function stageHtml() {
   const engine = readFileSync(join(HERE, "stage.js"), "utf8");
   const base = pathToFileURL(specDir + "/").href;
   return `<!doctype html><html><head><meta charset="utf-8"><base href="${base}">
-<style>${fontCss()}
+<style>${fontCss(spec.fonts, specDir)}
 html,body{margin:0;padding:0;background:#000;overflow:hidden}
 *{box-sizing:border-box;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;font-kerning:normal}
 .ktv-safe{position:absolute;inset:0;pointer-events:none;z-index:9999}
@@ -95,26 +50,6 @@ html,body{margin:0;padding:0;background:#000;overflow:hidden}
 <script>window.KTV_SPEC=${JSON.stringify(spec).replace(/</g, "\\u003c")};</script>
 <script>${engine}</script>
 </body></html>`;
-}
-
-async function launch() {
-  const { chromium } = load("playwright");
-  const tries = [
-    process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : null,
-    {},
-    { channel: "chrome" },
-    { channel: "msedge" },
-    existsSync("/opt/pw-browsers/chromium") ? { executablePath: "/opt/pw-browsers/chromium" } : null,
-  ].filter(Boolean);
-  let last;
-  for (const opt of tries) {
-    try {
-      return await chromium.launch({ ...opt, args: ["--font-render-hinting=none", "--disable-lcd-text", "--force-color-profile=srgb"] });
-    } catch (err) {
-      last = err;
-    }
-  }
-  throw new Error(`No Chromium found. Run: npx playwright install chromium\n${last?.message ?? ""}`);
 }
 
 async function openStage(browser, stagePath) {
@@ -244,7 +179,7 @@ async function main() {
   mkdirSync(tmp, { recursive: true });
   const stagePath = join(tmp, "stage.html");
   writeFileSync(stagePath, stageHtml());
-  const browser = await launch();
+  const browser = await launch(specDir);
   try {
     const { page, info } = await openStage(browser, stagePath);
     const duration = Number(flag("duration", "")) || info.duration;

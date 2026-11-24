@@ -341,14 +341,15 @@
     const h = (item.h ?? 420) * U;
     const stage = el("div", "ktv-cards", host, { position: "relative", width: "100%", height: `${(item.boxH ?? item.h ?? 420) * U}px`, perspective: px(1800) });
     const cards = item.images.map((img, i) => {
+      const bare = img.bare ?? item.bare ?? false;
       const card = el("div", "ktv-card", stage, {
-        position: "absolute", left: "50%", top: "50%", borderRadius: px(img.radius ?? item.radius ?? 18), overflow: "hidden",
-        boxShadow: `0 ${px(34)} ${px(60)} ${px(-18)} rgba(0,0,0,.38), 0 ${px(6)} ${px(14)} rgba(0,0,0,.12)`, background: "#ddd",
+        position: "absolute", left: "50%", top: "50%", borderRadius: bare ? "0" : px(img.radius ?? item.radius ?? 18), overflow: bare ? "visible" : "hidden",
+        boxShadow: bare ? "none" : `0 ${px(34)} ${px(60)} ${px(-18)} rgba(0,0,0,.38), 0 ${px(6)} ${px(14)} rgba(0,0,0,.12)`, background: bare ? "transparent" : "#ddd",
         width: `${(img.w ?? item.w ?? h * 0.78 / U) * U}px`, height: `${(img.h ?? item.h ?? 420) * U}px`, willChange: "transform, filter",
       });
-      const im = el("img", "", card, { width: "100%", height: "100%", objectFit: "cover", display: "block" });
+      const im = el("img", "", card, { width: "100%", height: "100%", objectFit: bare ? "contain" : "cover", display: "block" });
       im.src = img.src;
-      return { img, card, i };
+      return { img, card, i, bare };
     });
     return { stage, cards, layout, mb: motionBlur() };
   }
@@ -361,7 +362,7 @@
       focus = keys[0].index;
       for (let i = 1; i < keys.length; i++) focus = lerp(focus, keys[i].index, ease.inOut(prog(t, keys[i].at, 0.5)));
     }
-    data.cards.forEach(({ img, card, i }) => {
+    data.cards.forEach(({ img, card, i, bare }) => {
       const t0 = img.at !== undefined ? timeOf(img.at) : item.at + i * (item.stagger ?? 0.12);
       const k = prog(t, t0, 0.55);
       if (k <= 0) {
@@ -409,7 +410,7 @@
       card.style.opacity = String(clamp(k * 2.2) * fade);
       card.style.transform = `translate(-50%, -50%) translate(${x.toFixed(2)}px, ${(y + bob + enterY).toFixed(2)}px) rotateX(${tilt[0]}deg) rotateY(${tilt[1]}deg) rotate(${(rot + sway + enterRot).toFixed(2)}deg) scale(${(scale * enterScale).toFixed(4)})`;
       const enterBlur = (1 - e) * 16;
-      const f = [];
+      const f = bare ? [`drop-shadow(0 ${px(26)} ${px(30)} rgba(0,0,0,.28))`] : [];
       if (gray > 0.01) f.push(`grayscale(${gray.toFixed(3)})`);
       if (blur + enterBlur > 0.2) f.push(`blur(${((blur + enterBlur) * U).toFixed(2)}px)`);
       card.style.filter = f.join(" ");

@@ -20,6 +20,9 @@ All in the folder named by this skill's `root`:
 | `voice.mjs` | Script text → `vo.mp3` + `vo.timestamps.json` in the house voice (ElevenLabs, with word timing). |
 | `align.mjs` | Writes the spoken time of every on-screen word into the spec. |
 | `render.mjs` | Renders the spec to stills (to review) or to the final mp4 (1080×1920, 30 fps, −14 LUFS). |
+| `mockup.mjs` | An HTML file of `data-mockup` elements → one transparent 2× PNG each, in the video's fonts and colours. |
+| `mockups-example.html` | Six finished mockups (clocks, laptop, notification, load board, route map, comment box) to copy from. |
+| `browser.mjs` | The fonts and Chromium setup shared by the two renderers. |
 | `stage.js` | The animation engine. Every motion is a function of time, so a frame always renders the same. |
 | `example.json` | A complete spec using every prop. Copy it to start. |
 | `package.json` | Browser and fonts. |
@@ -116,7 +119,7 @@ Text items get their times from `align.mjs`. Time everything else from cues, so 
 | `pill` | `text` | A label above a hero line («وهنا نقول») |
 | `badge` | `icon`: eye-off, eye, alert, heart, check, star, play | A small cue above a line, with a ring pulse |
 | `checklist` | `items: [{text}]`, `size` | Spoken lists, with a tick per row as it's said |
-| `cards` | `images: [{src,x,y,rot,w,h,at}]`, `layout: "row"\|"carousel"\|"free"`, `focus: [{at,index}]`, `h`, `w`, `boxH`, `tilt` | Mockups. In `carousel` the focused card is in colour and the others go grey |
+| `cards` | `images: [{src,x,y,rot,w,h,at,bare}]`, `layout: "row"\|"carousel"\|"free"`, `focus: [{at,index}]`, `h`, `w`, `boxH`, `tilt`, `bare` | Mockups. In `carousel` the focused card is in colour and the others go grey |
 | `phone` | `src` (a tall screenshot), `w`, `scroll: [{at,to,dur}]`, `spin` | A feed being scrolled |
 | `meter` | `fill: [[at, 0..1], …]`, `icon` | A trend dying, a timer, progress |
 | `image` | `src`, `w`, `swap: {src, at}` | A logo, recoloured with a swap |
@@ -129,8 +132,31 @@ Scene fields: `bg`, `enter`, `exit`, `layout: "center"|"upper"` (upper puts a wo
 Spec fields: `audio: {voice, music, musicGain, sfx: [{src,at,gain}], autoSfx, lufs}`, `footer: {text, scenes: [0,1]}`,
 `lead`, `cadence`, `fonts`, `palette`, `duration`.
 
-Mockups must be the person's real work or images they give you. Never invent brand work. With nothing to show, run text
-and props only; `example.json` does.
+## Mockups
+
+Use the person's real work or images whenever they have them, and never invent brand work and pass it off as theirs.
+Without them, design honest interface mockups of what the voice is describing. Use AI images only when the person asks
+for them.
+
+1. Pick one mockup per idea the voice names: a place and time → clocks, "online" → a laptop on a search, a result →
+   a notification, the job itself → its real tool (a load board, an editor, a dashboard), "someone guides you" → a route,
+   "comment X" → a comment box with X typed in it. Use 4–6 per minute, never two in a row.
+2. Write them in one HTML file, one `data-mockup="name"` element each, and copy patterns from `mockups-example.html`. Use
+   the tokens it gets for free: `var(--cream)`, `--blue`, `--ink`, `--periwinkle`, `--pill`, `--text`, `--display`.
+   - White cards with a 34px radius, one accent per mockup, and tabular numbers.
+   - Keep the interface in the language the real tool uses: English for a US load board, Arabic for anything the viewer
+     types.
+3. Every figure must be plausible: real distances, real time zones, normal market rates. Use `example.com` for addresses,
+   and never use a real company's name or logo.
+4. Run `node <root>/mockup.mjs mockups.html img` to get `img/<name>.png` and its size.
+5. Place each one under the line that names it, as a single-card `row` with `"bare": true` (it keeps its own corners and
+   gets a soft drop shadow). Scale `w` and `h` together, keep the card 520–660 wide, and give it a 1–3° `rot` or a small
+   `tilt`. Start it at the cue of the word that names it, `"#line.end"` or `"#line.2"`.
+
+```json
+{ "type": "cards", "layout": "row", "bare": true, "at": "#disp.end", "w": 560, "h": 427, "boxH": 467,
+  "images": [ { "src": "img/board.png", "rot": -2 } ] }
+```
 
 ## Sound
 
