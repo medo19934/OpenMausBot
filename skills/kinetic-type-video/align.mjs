@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from "node:fs";
 
-const [specPath, transcriptPath, outPath = specPath] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const flag = (name) => {
+  const i = args.indexOf(`--${name}`);
+  return i === -1 ? undefined : args[i + 1];
+};
+const [specPath, transcriptPath, outPath = specPath] = args.filter((a, i) => !a.startsWith("--") && !(i > 0 && args[i - 1].startsWith("--")));
 if (!specPath || !transcriptPath) {
-  console.error("usage: node align.mjs spec.json transcript.json [out.json]");
+  console.error("usage: node align.mjs spec.json transcript.json [out.json] [--fallback other-transcript.json]");
   process.exit(1);
 }
-
-const spec = JSON.parse(readFileSync(specPath, "utf8"));
-const raw = JSON.parse(readFileSync(transcriptPath, "utf8"));
 
 function transcriptWords(data) {
   if (Array.isArray(data.words)) {
@@ -23,10 +25,13 @@ function transcriptWords(data) {
     const { characters, character_start_times_seconds: st, character_end_times_seconds: en } = data.alignment;
     const words = [];
     let cur = null;
+    let inTag = false;
     characters.forEach((c, i) => {
-      if (/\s/.test(c)) {
+      if (c === "[") inTag = true;
+      if (inTag || /\s/.test(c)) {
         if (cur) words.push(cur);
         cur = null;
+        if (c === "]") inTag = false;
         return;
       }
       if (!cur) cur = { text: "", start: st[i], end: en[i] };
@@ -66,71 +71,107 @@ const similar = (a, b) => {
   return d[m][n] <= Math.max(1, Math.floor(Math.max(m, n) / 4));
 };
 
-const words = transcriptWords(raw).map((w) => ({ ...w, key: norm(w.text) }));
 const LOOKAHEAD = 14;
-let cursor = 0;
+
+function aligner(file) {
+  const words = transcriptWords(JSON.parse(readFileSync(file, "utf8"))).map((w) => ({ ...w, key: norm(w.text) }));
+  let cursor = 0;
+  const near = (key) => {
+    for (let j = cursor; j < Math.min(words.length, cursor + LOOKAHEAD); j++) if (similar(words[j].key, key)) return j;
+    return -1;
+  };
+  const phrase = (keys) => {
+    let best = -1;
+    let bestScore = 0;
+    for (let j = cursor; j < words.length; j++) {
+      if (!similar(words[j].key, keys[0])) continue;
+      let score = 1;
+      let k = j + 1;
+      for (const key of keys.slice(1, 4)) {
+        const hit = words.slice(k, k + 3).findIndex((w) => similar(w.key, key));
+        if (hit === -1) continue;
+        score++;
+        k += hit + 1;
+      }
+      if (score > bestScore) {
+        best = j;
+        bestScore = score;
+        if (score === Math.min(4, keys.length)) break;
+      }
+    }
+    return keys.length === 1 || bestScore >= 2 ? best : -1;
+  };
+  return {
+    end: words.length ? words[words.length - 1].end : 0,
+    times(keys) {
+      if (keys.length && near(keys[0]) === -1) {
+        for (let i = 0; i < keys.length; i++) {
+          const j = phrase(keys.slice(i));
+          if (j !== -1) {
+            cursor = Math.max(cursor, j - i);
+            break;
+          }
+        }
+      }
+      return keys.map((key) => {
+        const j = near(key);
+        if (j === -1) return null;
+        cursor = j + 1;
+        return words[j].start;
+      });
+    },
+  };
+}
+
+const spec = JSON.parse(readFileSync(specPath, "utf8"));
+const primary = aligner(transcriptPath);
+const fallback = flag("fallback") ? aligner(flag("fallback")) : null;
+const lead = spec.audio?.voiceOffset ?? 0;
 const misses = [];
+let lastTime = 0;
 let matched = 0;
 let total = 0;
 
-const lead = spec.audio?.voiceOffset ?? 0;
+const keysOf = (text) => text.split(/\s+/).filter(Boolean).map((w) => norm(w.replace(/\*/g, "")));
 
-function find(key) {
-  for (let j = cursor; j < Math.min(words.length, cursor + LOOKAHEAD); j++) {
-    if (similar(words[j].key, key)) return j;
-  }
-  return -1;
-}
-
-function matchPhrase(text) {
-  const keys = text.split(/\s+/).filter(Boolean).map((w) => norm(w.replace(/\*/g, "")));
+function resolve(text) {
+  const keys = keysOf(text);
+  const a = primary.times(keys);
+  const b = fallback ? fallback.times(keys) : [];
+  const times = keys.map((_, i) => {
+    if (a[i] !== null) return a[i];
+    if (b[i] === null || b[i] === undefined) return null;
+    const inBefore = a.slice(0, i).reverse().find((x) => x !== null);
+    const after = a.slice(i + 1).find((x) => x !== null);
+    const before = inBefore ?? lastTime;
+    const reach = inBefore !== undefined || after !== undefined ? 1.2 : 6;
+    const fits = b[i] >= before && b[i] - before < reach + (inBefore === undefined ? 4.8 : 0) && (after === undefined || (b[i] <= after && after - b[i] < 1.2));
+    return fits ? b[i] : null;
+  });
   total += keys.length;
-  let first = null;
-  for (const key of keys) {
-    const j = find(key);
-    if (j === -1) {
-      misses.push(key);
-      continue;
-    }
-    matched++;
-    if (first === null) first = +(words[j].start + lead).toFixed(3);
-    cursor = j + 1;
+  times.forEach((t, i) => (t === null ? misses.push(text.split(/\s+/).filter(Boolean)[i]) : matched++));
+  for (let i = 0; i < times.length; i++) {
+    if (times[i] !== null) continue;
+    const prev = times.slice(0, i).reverse().find((x) => x !== null);
+    const next = times.slice(i + 1).find((x) => x !== null);
+    times[i] = prev !== undefined && next !== undefined ? (prev + next) / 2 : prev !== undefined ? prev + 0.25 : next !== undefined ? next - 0.25 : lastTime + 0.3;
   }
-  return first;
+  lastTime = Math.max(lastTime, ...times);
+  return times.map((t) => +(t + lead).toFixed(3));
 }
+
 for (const scene of spec.scenes ?? []) {
   for (const item of scene.items ?? []) {
     if (item.type === "checklist") {
       for (const row of item.items) {
-        if (typeof row.at === "string" || typeof row.at === "number") continue;
-        const t = matchPhrase(row.text);
-        if (t !== null) row.at = t;
+        if (row.at !== undefined) continue;
+        row.at = resolve(row.text)[0];
       }
       if (typeof item.at !== "string" && item.items[0]?.at !== undefined) item.at = item.items[0].at;
       continue;
     }
     if ((item.type ?? "text") !== "text" || item.times || typeof item.at === "string") continue;
-    const tokens = item.text.split(/\s+/).filter(Boolean).map((w) => w.replace(/\*/g, ""));
-    const times = [];
-    tokens.forEach((tok) => {
-      total++;
-      const key = norm(tok);
-      const found = find(key);
-      if (found === -1) {
-        times.push(null);
-        misses.push(tok);
-        return;
-      }
-      matched++;
-      times.push(+(words[found].start + lead).toFixed(3));
-      cursor = found + 1;
-    });
-    for (let i = 0; i < times.length; i++) {
-      if (times[i] !== null) continue;
-      const prev = times.slice(0, i).reverse().find((x) => x !== null);
-      const next = times.slice(i + 1).find((x) => x !== null);
-      times[i] = +(prev !== undefined && next !== undefined ? (prev + next) / 2 : prev !== undefined ? prev + 0.25 : (next ?? 0) - 0.25).toFixed(3);
-    }
+    const times = resolve(item.text);
     if (times.length) {
       item.times = times;
       item.at = times[0];
@@ -139,6 +180,5 @@ for (const scene of spec.scenes ?? []) {
 }
 
 writeFileSync(outPath, JSON.stringify(spec, null, 2) + "\n");
-const last = words[words.length - 1];
-console.log(`aligned ${matched}/${total} on-screen words · voice ends at ${(last.end + lead).toFixed(2)}s`);
+console.log(`aligned ${matched}/${total} on-screen words · voice ends at ${(primary.end + lead).toFixed(2)}s`);
 if (misses.length) console.log(`interpolated (not heard in the voice): ${misses.join(" · ")}`);

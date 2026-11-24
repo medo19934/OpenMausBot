@@ -225,8 +225,11 @@
       ? { rects: rows.map(() => el("div", "ktv-select", box, { position: "absolute", background: g.select, borderRadius: px(6), pointerEvents: "none", zIndex: "-1" })),
           caret: el("div", "ktv-caret", box, { position: "absolute", width: px(4), background: g.bg === palette.cream ? palette.blue : "#FFFFFF", borderRadius: px(2) }) }
       : null;
-    if (sel) box.style.position = "relative";
-    return { box, words, rows, sel, gap: 0.27 * size };
+    const strikes = item.strike
+      ? rows.map(() => el("div", "ktv-strike", box, { position: "absolute", height: `${Math.max(4, size * 0.075)}px`, borderRadius: px(99), background: item.strike.color ? palette[item.strike.color] ?? item.strike.color : g.bg === palette.cream ? palette.blue : palette.periwinkle, transformOrigin: dir === "rtl" ? "right center" : "left center", pointerEvents: "none" }))
+      : null;
+    if (sel || strikes) box.style.position = "relative";
+    return { box, words, rows, sel, strikes, gap: 0.27 * size };
   }
 
   function timeText(item, data) {
@@ -257,10 +260,34 @@
       w.slot.style.marginInlineStart = w === data.words[data.rows[w.row].first] ? "0px" : `${(data.gap * k).toFixed(2)}px`;
       if (!exitStyle(w.inner, t, outT === undefined ? undefined : outT + (data.words.length - 1 - w.index) * 0.035, w.index + item.at)) {
         revealStyle(w.inner, t, w.t, style);
+        if (data.strikes) {
+          const sk = ease.inOut(prog(t, timeOf(item.strike.at) + w.row * 0.08, 0.32));
+          if (sk > 0) w.inner.style.opacity = String(Number(w.inner.style.opacity || 1) * lerp(1, 0.42, sk));
+        }
       }
       grown.set(w.row, Math.max(grown.get(w.row) ?? 0, k));
     });
     data.rows.forEach((r, i) => r.grow.set(item.reserve ? 1 : ease.outQuint(grown.get(i) ?? 0)));
+    if (data.strikes) {
+      const t0 = timeOf(item.strike.at);
+      const boxRect = data.box.getBoundingClientRect();
+      const scale = boxRect.width / data.box.offsetWidth || 1;
+      data.strikes.forEach((line, ri) => {
+        const k = ease.inOut(prog(t, t0 + ri * 0.08, 0.32));
+        const inRow = data.words.filter((w) => w.row === ri);
+        if (k <= 0 || !inRow.length) {
+          line.style.display = "none";
+          return;
+        }
+        line.style.display = "";
+        const rs = inRow.map((w) => w.slot.getBoundingClientRect());
+        const left = (Math.min(...rs.map((r) => r.left)) - boxRect.left) / scale;
+        const right = (Math.max(...rs.map((r) => r.right)) - boxRect.left) / scale;
+        const top = (rs[0].top - boxRect.top) / scale;
+        const h = rs[0].height / scale;
+        Object.assign(line.style, { left: `${left - 10 * U}px`, width: `${right - left + 20 * U}px`, top: `${top + h * 0.5}px`, transform: `scaleX(${k.toFixed(4)}) rotate(${dir === "rtl" ? 2 : -2}deg)` });
+      });
+    }
     if (data.sel) {
       const s = item.select;
       const first = s.from ?? 0;
@@ -706,6 +733,13 @@
     let scale = 1 + drift * life;
     let blur = 0;
     let ty = 0;
+    for (const entry of sc.items) {
+      if (!entry.spec.kick) continue;
+      const t0 = entry.spec.words?.[0]?.t ?? entry.spec.at;
+      if (t < t0) continue;
+      const k = prog(t, t0, 0.5);
+      scale *= 1 + (typeof entry.spec.kick === "number" ? entry.spec.kick : 0.07) * (1 - ease.out(k)) * Math.min(1, k * 12);
+    }
     const exit = s.exit ?? "none";
     if (exit === "zoom") {
       const k = ease.in(prog(t, sc.end - 0.42, 0.42));

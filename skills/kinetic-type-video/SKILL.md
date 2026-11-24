@@ -32,12 +32,13 @@ All in the folder named by this skill's `root`:
 1. Make a work folder for the video. Copy `package.json` and `example.json` into it and run `npm install`. If Chromium
    is missing, run `npx playwright install chromium`. ffmpeg must be on the PATH.
 2. Write the script (below) to `script.txt`.
-3. Voice it: `node <root>/voice.mjs script.txt --out vo`. This needs `ELEVENLABS_API_KEY`. If the person recorded their own
-   voice, transcribe it with word timestamps instead (ElevenLabs speech-to-text or Whisper `verbose_json`). Either file
-   works in step 5.
+3. Voice it: `node <root>/voice.mjs script.txt --out vo`. This needs `ELEVENLABS_API_KEY`. It writes `vo.mp3` (processed to
+   sound recorded, below), `vo.timestamps.json` and `vo.stt.json`, a transcript of the final audio. If the person recorded
+   their own voice, transcribe it with word timestamps instead (ElevenLabs speech-to-text or Whisper `verbose_json`).
 4. Write `spec.json` (below). Put each on-screen line in its own text item and don't give text items times.
-5. Sync: `node <root>/align.mjs spec.json vo.timestamps.json`. It reports any on-screen word it didn't hear in the voice. Fix
-   the spelling to match what is said, or accept the guessed time.
+5. Sync: `node <root>/align.mjs spec.json vo.stt.json --fallback vo.timestamps.json`. The transcript of the real audio
+   sets the timing, and the speech model's own timings fill in loanwords the transcript spells in Latin script. It reports
+   any on-screen word it couldn't place.
 6. Review stills before you render: `node <root>/render.mjs spec.json --stills auto --safe`. This writes `stills/sheet.png`
    with two frames per scene and TikTok's UI zones shaded red. Look at the sheet, fix what fails the checklist, and
    repeat.
@@ -51,12 +52,31 @@ The house voice is `mUrAdOukT8TtEOpp0uKv`: a young Saudi woman in Hijazi dialect
 a voice designed on the owner's ElevenLabs account, so it works only with that account's key. Use it for every voiceover
 unless the person names another; `--voice <id>` or `KTV_VOICE_ID` change it.
 
-- Model `eleven_v3`. Raise `--stability 0.65` if a take wobbles, and use `--speed 1.05` for a brisker read.
-- Write the script in spoken dialect, not formal Arabic: «ليش صرنا نشوف…», «مو كل…», «حابة أذكرها». Leave loanwords in
-  Latin script the way people say them (trend, brand, scroll, bio).
-- Punctuation drives delivery. Use «؟» for a lift, «،» for a breath and «.» for a full stop. The reference averages 2.0
-  spoken words a second, with a 0.6–0.7 s pause between ideas. Don't cram.
-- Speech starts within 0.15 s. There's no intro, no music sting, and no "hi guys".
+A take sounds synthetic for three measurable reasons: too many pauses of the same length, a pitch a little high, and
+sound with no room in it. Fix them in this order.
+
+1. **Write for a human mouth.** The script controls the rhythm more than any setting does.
+   - Use long flowing phrases, and only a few commas. Every «،» and «…» becomes a pause, and a pause after every few words
+     is what sounds like a robot.
+   - Use spoken dialect, with the speaker's own asides: «طيب»، «والمضحك إنه…»، «والله»، «خلاص». Write loanwords in Arabic
+     script (لابتوب، أونلاين).
+   - Add `eleven_v3` emotion tags where a person would actually react: `[curious]` on the hook, `[sighs]` on the setback,
+     `[laughs softly]` on the self-own, `[excited]` on the win, `[whispers]` before the reveal. Use 4–6 a minute; they are
+     acted, never read aloud.
+2. **Generate expressively.** `voice.mjs` defaults to `eleven_v3` at stability 0, its most expressive setting. When credit
+   allows, make two takes (`--stability 0` and `--stability 0.5`) and keep the one with fewer, more varied pauses.
+3. **Humanize (on by default).**
+   - Pauses: about 30% of the longest pauses stay as breaths (0.3–0.7 s), and the rest close to 0.07–0.2 s at varied
+     lengths, the way an editor cuts. The timings shift to match.
+   - Sound: pitch comes down 1.4 semitones (`--pitch`) with the voice's character kept. It also gets warm and present EQ,
+     a de-esser, gentle compression, early room reflections and a faint room tone.
+   - To process an existing take without paying again: `--from take.raw.mp3 --timings take.raw.timestamps.json`. To skip
+     processing, pass `--raw`.
+
+Measured against the human reference (229 Hz, 22 pauses a minute with a spread of 0.28 s), a raw take reads 258 Hz and 25
+pauses with a spread of 0.14; after these steps it reads 239 Hz and 21.5 pauses with a spread of 0.19.
+
+Speech starts within 0.15 s. There's no intro, no music sting, and no "hi guys".
 
 ## Script shape
 
@@ -115,7 +135,7 @@ Text items get their times from `align.mjs`. Time everything else from cues, so 
 
 | `type` | Fields | Use |
 |---|---|---|
-| `text` (default) | `text` (with `\n` and `*accent*`), `size`, `font: "display"`, `reveal: "soft"\|"pop"`, `select: {from,to,at}`, `out`, `leading` | Every line |
+| `text` (default) | `text` (with `\n` and `*accent*`), `size`, `font: "display"`, `reveal: "soft"\|"pop"`, `select: {from,to,at}`, `strike: {at}`, `kick`, `out`, `leading` | Every line. `strike` sweeps a line through it and dims it ("no, not X"). `kick` (true or a size such as 0.1) punches the camera in as it lands: use it on hero words, at most once a scene |
 | `pill` | `text` | A label above a hero line («وهنا نقول») |
 | `badge` | `icon`: eye-off, eye, alert, heart, check, star, play | A small cue above a line, with a ring pulse |
 | `checklist` | `items: [{text}]`, `size` | Spoken lists, with a tick per row as it's said |
