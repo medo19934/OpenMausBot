@@ -1,0 +1,50 @@
+{
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "dir": "rtl",
+  "theme": "paper",
+  "scenes": [
+    { "items": [
+      { "id": "hook", "text": "هذا الشعار\n*يحتاج تصحيح*!", "size": "l", "font": "display", "at": 0.2, "kick": true },
+      { "type": "annotate", "shape": "underline", "target": "#hook", "area": [0, 0.5, 1, 1], "at": "#hook.end" }
+    ] },
+    { "layout": "upper", "top": 0.18, "items": [
+      { "id": "three", "text": "*3* أخطاء", "size": "xl", "font": "display", "at": 2.0 },
+      { "type": "countdown", "from": 3, "step": 0.8, "at": "#three.end+0.2" },
+      { "text": "وقف الفيديو وحاول تكتشفها", "size": "s", "at": "#three.end+0.4" }
+    ] },
+    { "bg": "night", "enter": "iris", "layout": "upper", "top": 0.16, "items": [
+      { "type": "heading", "n": 1, "id": "m1", "text": "أول شي\n*الفكرة متوقعة*", "at": 5.4 },
+      { "type": "gap", "h": 60 },
+      { "id": "same", "text": "كوب قهوة مع بخار", "size": "l", "font": "display", "at": 6.6 },
+      { "type": "annotate", "shape": "cross", "target": "#same", "pad": 10, "at": "#same.end+0.3" }
+    ] },
+    { "rules": true, "enter": "push-right", "layout": "upper", "top": 0.16, "items": [
+      { "type": "heading", "n": 2, "id": "m2", "text": "أكثر من أسلوب للخط\n*وتوزيع غير متوازن*", "at": 8.6 },
+      { "type": "gap", "h": 60 },
+      { "id": "name", "text": "خطين *مختلفين*", "size": "xl", "font": "display", "at": 9.8 },
+      { "type": "annotate", "shape": "ellipse", "target": "#name", "area": [0, 0, 0.55, 1], "at": "#name.end+0.2" }
+    ] },
+    { "rules": true, "layout": "upper", "top": 0.16, "items": [
+      { "type": "heading", "n": 3, "id": "m3", "text": "ما فيه انسجام\n*بين الأيقونة والكتابة*", "at": 11.8 },
+      { "type": "gap", "h": 60 },
+      { "id": "pair", "text": "أيقونة + خط", "size": "xl", "font": "display", "at": 13.0 },
+      { "type": "annotate", "shape": "bracket", "target": "#pair", "at": "#pair.end+0.2" }
+    ] },
+    { "bg": "night", "enter": "iris", "items": [
+      { "type": "sparkle", "size": 240, "at": 15.2 },
+      { "type": "gap", "h": 30 },
+      { "text": "نفكر بطريقة\n*مختلفة*", "size": "l", "font": "display", "at": 15.5, "kick": true }
+    ] },
+    { "bg": "electric", "items": [
+      { "text": "الشعار صار يقول\n*قصة* البراند", "size": "l", "font": "display", "at": 17.6, "reveal": "pop" }
+    ] },
+    { "enter": "push-right", "items": [
+      { "id": "me", "text": "أنا *اسمك*", "size": "xl", "font": "display", "at": 19.6 },
+      { "text": "مصممة ومدربة", "size": "m", "at": 20.2 },
+      { "type": "gap", "h": 16 },
+      { "type": "cta", "text": "تابعني وشوف البايو", "at": "#me.end+0.8" }
+    ] }
+  ]
+}

@@ -27,6 +27,16 @@ if (spec.audio?.voice) {
 const W = spec.width ?? 1080;
 const H = spec.height ?? 1920;
 const FPS = spec.fps ?? 30;
+if (spec.captions) {
+  const src = resolve(specDir, spec.captions.transcript ?? "vo.stt.json");
+  const data = JSON.parse(readFileSync(src, "utf8"));
+  const raw = Array.isArray(data.words)
+    ? data.words.filter((w) => (w.type ?? "word") === "word").map((w) => ({ text: (w.text ?? w.word).trim(), start: w.start, end: w.end }))
+    : (data.segments ?? []).flatMap((seg) => (seg.words ?? []).map((w) => ({ text: (w.word ?? w.text).trim(), start: w.start, end: w.end })));
+  if (!raw.length) throw new Error(`No word timings in ${spec.captions.transcript ?? "vo.stt.json"}`);
+  const offset = spec.audio?.voiceOffset ?? 0;
+  spec.captionWords = raw.map((w) => ({ ...w, start: w.start + offset, end: w.end + offset }));
+}
 const scale = Number(flag("scale", "1"));
 const stills = flag("stills");
 const range = flag("range");
@@ -43,7 +53,7 @@ function stageHtml() {
   const base = pathToFileURL(specDir + "/").href;
   return `<!doctype html><html><head><meta charset="utf-8"><base href="${base}">
 <style>${fontCss(spec.fonts, specDir)}
-html,body{margin:0;padding:0;background:#000;overflow:hidden}
+html,body{margin:0;padding:0;background:${spec.footage ? "transparent" : "#000"};overflow:hidden}
 *{box-sizing:border-box;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;font-kerning:normal}
 .ktv-safe{position:absolute;inset:0;pointer-events:none;z-index:9999}
 </style></head><body>
@@ -62,10 +72,34 @@ async function openStage(browser, stagePath) {
   return { page, info };
 }
 
-async function frame(page, t, type = "png") {
+async function frame(page, t) {
   await page.evaluate((tt) => window.KTV.seek(tt), t);
-  return page.screenshot({ type, quality: type === "jpeg" ? 92 : undefined, clip: { x: 0, y: 0, width: W, height: H }, animations: "disabled", caret: "hide" });
+  return page.screenshot({ type: "png", omitBackground: Boolean(spec.footage), clip: { x: 0, y: 0, width: W, height: H }, animations: "disabled", caret: "hide" });
 }
+
+function buildFootage(tmp) {
+  const clips = spec.footage.clips ?? [spec.footage];
+  const files = clips.map((clip, i) => {
+    const file = join(tmp, `clip${i}.mp4`);
+    const src = resolve(specDir, clip.src);
+    const seek = clip.from ? ["-ss", String(clip.from)] : [];
+    const until = clip.to !== undefined ? ["-t", String(clip.to - (clip.from ?? 0))] : [];
+    const len = clip.to !== undefined ? clip.to - (clip.from ?? 0) : Number(run("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", src]).stdout) - (clip.from ?? 0);
+    const [z0, z1] = clip.zoom ?? spec.footage.zoom ?? [1, 1.06];
+    const grade = clip.grade ?? spec.footage.grade ?? "eq=contrast=1.04:saturation=1.06";
+    run("ffmpeg", ["-v", "error", "-y", ...seek, ...until, "-i", src, "-an", "-vf",
+      `scale=${W}:${H}:force_original_aspect_ratio=increase,scale=w='trunc(iw*(${z0}+(${z1 - z0})*t/${Math.max(0.1, len).toFixed(3)})/2)*2':h=-2:eval=frame,crop=${W}:${H},setsar=1,fps=${FPS},${grade},format=yuv420p`,
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "14", file]);
+    return file;
+  });
+  const list = join(tmp, "clips.txt");
+  writeFileSync(list, files.map((f) => `file '${f}'`).join("\n"));
+  const out = join(tmp, "footage.mp4");
+  run("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", list, "-c", "copy", out]);
+  return { file: out, length: Number(run("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", out]).stdout) };
+}
+
+let footage = null;
 
 function safeOverlay(page) {
   return page.evaluate(([w, h]) => {
@@ -82,9 +116,13 @@ async function renderSegment(browser, stagePath, f0, f1, file) {
   const { page } = await openStage(browser, stagePath);
   const ow = Math.round(W * scale);
   const oh = Math.round(H * scale);
+  const size = `scale=${ow - (ow % 2)}:${oh - (oh % 2)}:flags=lanczos,format=yuv420p`;
+  const inputs = footage
+    ? ["-ss", (f0 / FPS).toFixed(4), "-t", ((f1 - f0) / FPS).toFixed(4), "-i", footage.file, "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "png", "-i", "-",
+      "-filter_complex", `[0:v]setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=3600[bg];[1:v]format=rgba[ov];[bg][ov]overlay=0:0:shortest=1,${size}`]
+    : ["-f", "image2pipe", "-framerate", String(FPS), "-c:v", "png", "-i", "-", "-vf", size];
   const ff = spawn("ffmpeg", [
-    "-v", "error", "-y", "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "png", "-i", "-",
-    "-vf", `scale=${ow - (ow % 2)}:${oh - (oh % 2)}:flags=lanczos,format=yuv420p`,
+    "-v", "error", "-y", ...inputs,
     "-c:v", "libx264", "-preset", has("fast") ? "veryfast" : "slow", "-crf", has("fast") ? "22" : "16",
     "-tune", "animation", "-profile:v", "high", "-pix_fmt", "yuv420p", "-g", String(FPS * 2), "-r", String(FPS), file,
   ], { stdio: ["pipe", "inherit", "inherit"] });
@@ -177,6 +215,11 @@ async function main() {
   const tmp = join(specDir, ".ktv-render");
   rmSync(tmp, { recursive: true, force: true });
   mkdirSync(tmp, { recursive: true });
+  if (spec.footage) {
+    footage = buildFootage(tmp);
+    spec.footageLength = footage.length;
+    console.log(`footage ${footage.length.toFixed(2)}s from ${(spec.footage.clips ?? [spec.footage]).length} clip(s)`);
+  }
   const stagePath = join(tmp, "stage.html");
   writeFileSync(stagePath, stageHtml());
   const browser = await launch(specDir);
@@ -197,6 +240,13 @@ async function main() {
       for (const t of times) {
         const file = join(dir, `t${t.toFixed(2)}.png`);
         writeFileSync(file, await frame(page, t));
+        if (footage) {
+          const bg = join(tmp, "still-bg.png");
+          run("ffmpeg", ["-v", "error", "-y", "-ss", String(Math.min(t, footage.length - 0.05)), "-i", footage.file, "-frames:v", "1", bg]);
+          const layered = join(tmp, "still-layered.png");
+          run("ffmpeg", ["-v", "error", "-y", "-i", bg, "-i", file, "-filter_complex", "[0][1]overlay=0:0", layered]);
+          writeFileSync(file, readFileSync(layered));
+        }
         files.push(file);
       }
       const cols = Math.min(6, files.length);

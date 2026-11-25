@@ -1,15 +1,27 @@
 ---
 name: kinetic-type-video
-description: "Make vertical kinetic-typography videos (TikTok, Reels, Shorts) in a measured Arabic explainer style: words land on the voiceover, three flat grounds, blur-in reveals, whip pushes, floating mockups, UI props. Writes the script, voices it, renders a finished mp4."
+description: "Make vertical Arabic explainer videos (TikTok, Reels, Shorts) in three measured formats: kinetic type on flat colour, a ruled-paper tips format with hand-drawn annotations, and screen footage with word-by-word captions. Writes the script, voices it, renders a finished mp4."
 ---
 
 # Kinetic type video
 
-A 9:16 talking-text video. Words land on the voice the moment they are said, over flat colour, with a few props and
-mockups that move like real objects. No stock footage, no templates, no emoji, no gradients. Every frame should look
-like a designer set it by hand.
+A 9:16 Arabic explainer in one creator's house style. Words land on the voice the moment they are said, and props and
+mockups move like real objects. No stock footage, no templates, no emoji, no gradients. Every frame should look like a
+designer set it by hand.
 
-Everything here was measured from a reference edit frame by frame, so treat the numbers as the style, not suggestions.
+Everything here was measured frame by frame from six of the creator's edits, so treat the numbers as the style, not
+suggestions.
+
+## Pick the format
+
+| Format | Looks like | Use it when | Start from |
+|---|---|---|---|
+| **Studio** (default) | Cream, royal blue and ink grounds, big kinetic words, whip pushes, floating UI mockups | An opinion, a story or a trend, with no footage | `example.json` |
+| **Paper** (`"theme": "paper"`) | Ruled light-grey paper and near-black, numbered tips, hand-drawn circles, crosses and brackets, sparkle, circle-wipe | "3 mistakes in this logo", a critique, steps, before and after | `example-paper.json` |
+| **Footage** (`"footage"` + `"captions"`) | The person's own screen or camera recording, captions of 2–3 words with the spoken word lit, banners and logo stickers | A tool demo, a tutorial, news about an app | the footage example below |
+
+The formats mix: a footage video can cut to a paper or studio title card, since scenes with a solid `bg` cover the
+footage.
 
 ## Files
 
@@ -23,6 +35,7 @@ All in the folder named by this skill's `root`:
 | `mockup.mjs` | An HTML file of `data-mockup` elements → one transparent 2× PNG each, in the video's fonts and colours. |
 | `mockups-example.html` | Six finished mockups (clocks, laptop, notification, load board, route map, comment box) to copy from. |
 | `browser.mjs` | The fonts and Chromium setup shared by the two renderers. |
+| `example-paper.json` | The paper format with every new prop, renderable without images or audio. |
 | `stage.js` | The animation engine. Every motion is a function of time, so a frame always renders the same. |
 | `example.json` | A complete spec using every prop. Copy it to start. |
 | `package.json` | Browser and fonts. |
@@ -48,12 +61,22 @@ All in the folder named by this skill's `root`:
 
 ## The voice
 
-The house voice is `mUrAdOukT8TtEOpp0uKv`: a young Saudi woman in Hijazi dialect, warm, bright and conversational. It is
-a voice designed on the owner's ElevenLabs account, so it works only with that account's key. Use it for every voiceover
-unless the person names another; `--voice <id>` or `KTV_VOICE_ID` change it.
+The creator's voice is a real person talking; no synthetic voice fully matches that, and pretending otherwise wastes the
+person's time. Choose the source in this order, and say which one you used:
 
-A take sounds synthetic for three measurable reasons: too many pauses of the same length, a pitch a little high, and
-sound with no room in it. Fix them in this order.
+1. **The person's own recording.** This is the best by far. A phone voice memo in a quiet room is enough. Run it through
+   `voice.mjs --from memo.mp3 --pitch 0` to tighten the pauses, add presence and transcribe it, or use it as is. Transcribe it for timing (step 5 works
+   with any transcript). Recording yourself is also what the creator does.
+2. **A human-recorded voice.** On a paid ElevenLabs plan, use a professional library voice recorded by a Saudi speaker
+   who licensed it, or an instant clone of **the person's own voice** made from their own recording. Never clone anyone
+   else's voice, including the creator whose style this is.
+3. **The house voice**, a designed voice: `mUrAdOukT8TtEOpp0uKv`, a young Saudi woman in Hijazi dialect. It exists only on
+   the owner's ElevenLabs account and works only with that account's key. `--voice <id>` or `KTV_VOICE_ID` change it.
+   `eleven_v3` is the most expressive; `--model eleven_multilingual_v2` is steadier and less theatrical, so let the
+   person hear both on their hook line before a full take.
+
+A synthetic take sounds synthetic for three measurable reasons: too many pauses of the same length, a pitch a little
+high, and sound with no room in it. Fix them in this order.
 
 1. **Write for a human mouth.** The script controls the rhythm more than any setting does.
    - Use long flowing phrases, and only a few commas. Every «،» and «…» becomes a pause, and a pause after every few words
@@ -80,15 +103,30 @@ Speech starts within 0.15 s. There's no intro, no music sting, and no "hi guys".
 
 ## Script shape
 
-60–75 seconds, about 130–150 spoken words:
+Six edits measured: 25–87 seconds, 2.2–2.33 spoken words a second, speech starting within 0.36 s.
 
-1. **Hook question** (0–3 s), naming what the viewer keeps seeing: «ليش صرنا نشوف X كذا؟».
-2. **Answer in one blunt line**, with the audience as the subject: «ببساطة، لأن جيل زد ما ينبهر بـ…».
-3. **The reason**, with 2–3 concrete examples. These become the checklist and the mockups.
-4. **The nuance turn**: «ونقطة مهمة حابة أذكرها…», where you correct the obvious takeaway.
-5. **A contrast**: what fails vs what works, said once each.
-6. **A memorable closer**: «الناس ما تنسى براند خلاها تحس بشي».
-7. **Sign-off**: name, role, what you post, then «تابعني وشوف البايو».
+**Hook (0–3 s), one of four:**
+
+- **Challenge:** «هذا الشعار يحتاج تصحيح. تعرف ليه؟ قبل لا أشرح، وقف الفيديو وحاول تكتشف ثلاث أخطاء». Pair it with a
+  countdown.
+- **Pain question:** «للحين تسأل نفسك كم سعر خدماتي كمصمم؟»
+- **Bold claim:** «إذا هذه مو أفضل أداة نزلت في Illustrator، فأنا ما أعرف شي.»
+- **News or trend:** «في نموذج AI جديد بدأ يغير طريقة توليد الصور.» or «ليش صرنا نشوف X كذا؟»
+
+**Body, by format:**
+
+- **Opinion (studio):** a blunt answer («ببساطة، لأن…»), the reason with 2–3 examples, the nuance turn («ونقطة مهمة حابة
+  أذكرها…»), a contrast, and a memorable closer.
+- **Critique (paper):** numbered faults («أول شي… / ثاني خطأ… / ثلاثة…»), then the turn «طيب، كيف ممكن نفكر بطريقة
+  مختلفة؟», then the fix built from the brand's story element by element, then «وبكذا…» stating what changed.
+- **Demo (footage):** «تعالوا معي نجربها», the steps in first person («رسمت… نقلت… اخترت… ضغطت»), «وإيش صار؟» before
+  the result, then one honest caveat («طبعاً أحب أوضح إنه…»).
+
+**Ending, one of three:**
+
+- **Identity:** name, role, what you post, then «تابعني وشوف الـ bio».
+- **Question:** «سؤالي هو: هل…؟», which drives comments.
+- **Share:** «ولا تنسى تشارك الفيديو مع صديقك المصمم».
 
 ## What goes on screen
 
@@ -145,12 +183,65 @@ Text items get their times from `align.mjs`. Time everything else from cues, so 
 | `image` | `src`, `w`, `swap: {src, at}` | A logo, recoloured with a swap |
 | `cta` | `text`, `click` | A dot grows into a button and a cursor clicks it. Use it once, at the end |
 | `gap` | `h` | Breathing room |
+| `heading` | `text`, `n`, `size`, `bar` | A numbered tip: a blue number badge, a 1–2 line title and a blue bar drawn under it. One per tip |
+| `annotate` | `shape`: ellipse, box, underline, bracket, cross, check, arrow; `target: "#id"`, `area: [x0,y0,x1,y1]`, `side`, `pad`, `x`, `y`, `color`, `out` | A hand-drawn mark that draws itself onto another item and follows it. A red `cross` for "wrong", a blue `ellipse` on the exact fault (`area` is fractions of the target), a `bracket` under the thing being judged, a yellow `arrow` (`side`) for "tap here" |
+| `sparkle` | `size`, `color` | The 8-point star before a turn («نفكر بطريقة مختلفة») |
+| `countdown` | `from`, `step` | 3-2-1 in a ring, for "pause the video and find them" |
 
-Scene fields: `bg`, `enter`, `exit`, `layout: "center"|"upper"` (upper puts a word above mockups), `top`, `centerY`,
-`gap`, `drift`, `start`/`end` (cues; you rarely need them).
+`pill` also takes `"style": "banner"`, a square-cornered title bar, for a footage title such as «تحديث اليستريتور 2026».
 
-Spec fields: `audio: {voice, music, musicGain, sfx: [{src,at,gain}], autoSfx, lufs}`, `footer: {text, scenes: [0,1]}`,
-`lead`, `cadence`, `fonts`, `palette`, `duration`.
+Scene fields: `bg`, `enter` (`cut`, `push-right`, `push-left`, `iris`), `exit` (`blur`, `zoom`), `layout:
+"center"|"upper"` (upper puts a word above mockups), `top`, `centerY`, `gap`, `drift`, `rules` (ruled paper lines),
+`brand: false` (hide the logo), `captions: false` (hide captions over this scene), and `start`/`end` (cues; you rarely
+need them).
+
+Spec fields: `theme`, `brand: {src, srcOnDark, w, y}` (the person's own logo, small and top-centre on every scene),
+`audio: {voice, music, musicGain, sfx: [{src,at,gain}], autoSfx, lufs}`, `footage`, `captions`, `footer: {text,
+scenes: [0,1]}`, `lead`, `cadence`, `fonts`, `palette`, `duration`.
+
+## The paper format
+
+Measured from the creator's critique videos:
+
+| Ground | Hex | Use it for |
+|---|---|---|
+| `paper` | #ECEDF2, rules #D4D5DA | Tips, the thing being judged, the fix |
+| `night` | #1E1F24, accent #7DA5FB | The first fault (a market of look-alikes), the turn («نفكر بطريقة مختلفة») |
+| `electric` | #0048E2, accent #F7FF59 | A one-line verdict |
+
+- Set `"theme": "paper"` and put the person's logo in `brand`. Use `rules: true` on the tip scenes, not on the opening
+  hook.
+- Open by showing the subject large with «هذا الشعار يحتاج تصحيح!», then «3 أخطاء» with a `countdown`.
+- Words lay out right to left one by one, so several English words in a row come out reversed: join them with a
+  non-breaking space (`Coffee\u00a0first`) to keep them in order.
+- Give each fault its own scene: a `heading` (`n`: 1, 2, 3), the subject, then one `annotate` drawn as the voice names the
+  fault, using `target` on the subject's card `id`.
+- The turn is an `iris` into `night` with a `sparkle`. The fix builds element by element (a 2×2 grid of line icons
+  with labels works well as a mockup), ending on before and after: «قبل», the old card, an `arrow` with `side:
+  "bottom"`, «بعد», and the new card.
+- End on the course or product card and a blue `cta`.
+
+## The footage format
+
+The person's own recordings carry the picture: their screen, their iPad, their desk. The engine cuts the clips
+together, crops each to 9:16 with a slow push-in, grades it lightly, and lays the captions and props on top.
+
+```json
+"footage": { "clips": [ { "src": "screen.mov", "from": 2.5, "to": 11 }, { "src": "ipad.mp4", "from": 0, "to": 6, "zoom": [1.08, 1] } ] },
+"captions": { "transcript": "vo.stt.json", "words": 3, "highlight": "active", "color": "#F7FF59", "y": 0.7 },
+"scenes": [ { "bg": "clear", "layout": "upper", "top": 0.3, "items": [
+  { "type": "pill", "style": "banner", "text": "تحديث اليستريتور 2026", "at": 0.3, "out": 3.4 } ] } ]
+```
+
+- Cut the footage on the voice: one clip per step, 2–6 s each, with the action (the click, the result) landing on the
+  word that names it.
+- Captions break at 2–3 words, at pauses longer than 0.45 s, and at punctuation. `highlight: "active"` lights each word
+  as it is spoken. `"keyword"` with `"keywords": [...]` lights only the words that matter. Use yellow `#F7FF59` on busy
+  footage and blue `#3B5BFF` on light footage, and keep them at 0.68–0.74 height.
+- Use `clear` scenes (transparent) to add a banner, a logo sticker (a `bare` card of the app's logo the person supplies,
+  shown when the voice names it), an `annotate` arrow on the button being clicked, or a `cards` screenshot.
+- A solid scene (`paper`, `cream`…) between clips works as a title card; set `captions: false` on it if the title already
+  says the words.
 
 ## Mockups
 
@@ -192,4 +283,7 @@ click on the button. Turn them off with `"autoSfx": false`. The mix is normalise
 - [ ] Arabic letters join, and nothing renders in a fallback font. The render stops if a font fails to load.
 - [ ] A ground change at least every 4 s, and no push between two scenes on the same ground.
 - [ ] The video ends on the CTA held at least 1.5 s after the click.
+- [ ] Every `annotate` sits on its target in the stills, not beside it.
+- [ ] In footage videos, captions never cover the thing being clicked; move them with `y` if they do.
+- [ ] Say which voice source you used, and offer the better one if it wasn't the person's own recording.
 - [ ] Check the file with `ffprobe`: 1080×1920, 30 fps, H.264 and AAC.

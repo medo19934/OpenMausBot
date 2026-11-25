@@ -44,8 +44,12 @@ function transcriptWords(data) {
   throw new Error("Unrecognised transcript: expected ElevenLabs STT, ElevenLabs TTS with-timestamps, or Whisper verbose_json");
 }
 
-const norm = (s) =>
-  s
+const SPOKEN_NUMBERS = { 0: "صفر", 1: "واحد", 2: "اثن", 3: "ثلاث", 4: "اربع", 5: "خمس", 6: "ست", 7: "سبع", 8: "ثمان", 9: "تسع", 10: "عشر" };
+
+const norm = (s) => {
+  const digits = s.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660)).replace(/[^0-9]/g, "");
+  if (digits && SPOKEN_NUMBERS[digits] && /^[^\p{L}]*[0-9٠-٩]+[^\p{L}]*$/u.test(s)) return SPOKEN_NUMBERS[digits];
+  return s
     .normalize("NFKC")
     .replace(/[ً-ٰٟـ]/g, "")
     .replace(/[إأآٱ]/g, "ا")
@@ -56,6 +60,7 @@ const norm = (s) =>
     .replace(/^ال(?=..)/, "")
     .replace(/[^\p{L}\p{N}]/gu, "")
     .toLowerCase();
+};
 
 const similar = (a, b) => {
   if (!a || !b) return false;
@@ -102,6 +107,12 @@ function aligner(file) {
     return keys.length === 1 || bestScore >= 2 ? best : -1;
   };
   return {
+    get cursor() {
+      return cursor;
+    },
+    set cursor(v) {
+      cursor = v;
+    },
     end: words.length ? words[words.length - 1].end : 0,
     times(keys) {
       if (keys.length && near(keys[0]) === -1) {
@@ -160,8 +171,16 @@ function resolve(text) {
   return times.map((t) => +(t + lead).toFixed(3));
 }
 
+const sources = [primary, fallback].filter(Boolean);
 for (const scene of spec.scenes ?? []) {
+  const base = sources.map((src) => src.cursor);
+  const reached = [...base];
+  const startItem = () => sources.forEach((src, i) => {
+    reached[i] = Math.max(reached[i], src.cursor);
+    src.cursor = base[i];
+  });
   for (const item of scene.items ?? []) {
+    startItem();
     if (item.type === "checklist") {
       for (const row of item.items) {
         if (row.at !== undefined) continue;
@@ -170,13 +189,17 @@ for (const scene of spec.scenes ?? []) {
       if (typeof item.at !== "string" && item.items[0]?.at !== undefined) item.at = item.items[0].at;
       continue;
     }
-    if ((item.type ?? "text") !== "text" || item.times || typeof item.at === "string") continue;
+    if (!["text", "heading"].includes(item.type ?? "text") || item.times || typeof item.at === "string") continue;
     const times = resolve(item.text);
     if (times.length) {
       item.times = times;
       item.at = times[0];
     }
   }
+  startItem();
+  sources.forEach((src, i) => {
+    src.cursor = reached[i];
+  });
 }
 
 writeFileSync(outPath, JSON.stringify(spec, null, 2) + "\n");

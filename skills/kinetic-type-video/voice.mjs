@@ -131,14 +131,14 @@ function humanize(rawAudio, rawTimings) {
     return `[0:a]atrim=${a.toFixed(4)}:${b.toFixed(4)},asetpts=PTS-STARTPTS,afade=t=in:d=${fade},afade=t=out:st=${Math.max(0, len - fade).toFixed(4)}:d=${fade}[k${i}]`;
   });
   const chain = [
-    `rubberband=pitch=${Math.pow(2, semitones / 12).toFixed(5)}:formant=preserved`,
+    semitones ? `rubberband=pitch=${Math.pow(2, semitones / 12).toFixed(5)}:formant=preserved` : null,
     "highpass=f=75",
     "equalizer=f=220:t=q:w=1.1:g=1.6",
     "equalizer=f=3200:t=q:w=1.4:g=1.2",
     "deesser=i=0.35",
     "acompressor=threshold=-19dB:ratio=2.6:attack=9:release=160:makeup=2",
     "aecho=0.88:0.55:13|23|37:0.11|0.07|0.04",
-  ].join(",");
+  ].filter(Boolean).join(",");
   const graph = [
     ...parts,
     `${keep.map((_, i) => `[k${i}]`).join("")}concat=n=${keep.length}:v=0:a=1,aformat=sample_rates=44100:channel_layouts=mono,${chain}[v]`,
@@ -146,6 +146,10 @@ function humanize(rawAudio, rawTimings) {
     "[v][room]amix=inputs=2:duration=first:normalize=0:weights=1 1,pan=stereo|c0=c0|c1=c0[out]",
   ].join(";");
   run("ffmpeg", ["-v", "error", "-y", "-i", rawAudio, "-filter_complex", graph, "-map", "[out]", "-c:a", "libmp3lame", "-b:a", "192k", `${out}.mp3`]);
+  if (!rawTimings) {
+    console.log(`humanized: ${pauses} pauses → ${breaths} kept as breaths, ${cut.toFixed(1)}s of dead air removed, pitch ${semitones} st`);
+    return;
+  }
   const al = JSON.parse(readFileSync(rawTimings, "utf8")).alignment;
   const shifted = {
     characters: al.characters,
@@ -177,12 +181,11 @@ async function transcribe(file) {
 }
 
 const source = flag("from") ? { rawAudio: flag("from"), rawTimings: flag("timings") } : await generate();
-if (!source.rawTimings) throw new Error("--from needs --timings");
 if (has("raw")) {
-  run("ffmpeg", ["-v", "error", "-y", "-i", source.rawAudio, "-c", "copy", `${out}.mp3`]);
-  writeFileSync(`${out}.timestamps.json`, readFileSync(source.rawTimings));
+  run("ffmpeg", ["-v", "error", "-y", "-i", source.rawAudio, "-c:a", "libmp3lame", "-b:a", "192k", `${out}.mp3`]);
+  if (source.rawTimings) writeFileSync(`${out}.timestamps.json`, readFileSync(source.rawTimings));
 } else {
   humanize(source.rawAudio, source.rawTimings);
 }
-console.log(`voice → ${out}.mp3 (${duration(`${out}.mp3`).toFixed(2)}s) · timings → ${out}.timestamps.json`);
+console.log(`voice → ${out}.mp3 (${duration(`${out}.mp3`).toFixed(2)}s)${source.rawTimings ? ` · timings → ${out}.timestamps.json` : ""}`);
 if (!has("no-stt")) await transcribe(`${out}.mp3`);

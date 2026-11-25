@@ -17,11 +17,16 @@
     ...(spec.palette ?? {}),
   };
   const grounds = {
-    cream: { bg: palette.cream, fg: palette.ink, accent: palette.blue, pill: palette.blue, pillText: palette.cream, surface: "#FFFFFF", muted: "rgba(17,17,17,.45)", select: "rgba(37,52,147,.18)" },
+    cream: { light: true, bg: palette.cream, fg: palette.ink, accent: palette.blue, pill: palette.blue, pillText: palette.cream, surface: "#FFFFFF", muted: "rgba(17,17,17,.45)", select: "rgba(37,52,147,.18)" },
     blue: { bg: palette.blue, fg: "#FFFFFF", accent: palette.blueAccent, pill: palette.pillOnBlue, pillText: "#FFFFFF", surface: palette.pillOnBlue, muted: "rgba(255,255,255,.55)", select: "rgba(255,255,255,.22)" },
     ink: { bg: palette.ink, fg: "#FFFFFF", accent: palette.periwinkle, pill: palette.periwinkle, pillText: "#FFFFFF", surface: palette.card, muted: "rgba(255,255,255,.5)", select: "rgba(87,109,245,.35)" },
+    paper: { light: true, bg: "#ECEDF2", fg: "#131016", accent: "#0048E2", pill: "#0048E2", pillText: "#FFFFFF", surface: "#FFFFFF", muted: "rgba(19,16,22,.45)", select: "rgba(0,72,226,.16)", rules: "#D4D5DA" },
+    night: { bg: "#1E1F24", fg: "#FFFFFF", accent: "#7DA5FB", pill: "#0048E2", pillText: "#FFFFFF", surface: "#2E2F34", muted: "rgba(255,255,255,.5)", select: "rgba(125,165,251,.3)" },
+    electric: { bg: "#0048E2", fg: "#FFFFFF", accent: "#F7FF59", pill: "#FFFFFF", pillText: "#0048E2", surface: "rgba(255,255,255,.16)", muted: "rgba(255,255,255,.6)", select: "rgba(255,255,255,.25)" },
+    clear: { bg: "transparent", fg: "#FFFFFF", accent: "#F7FF59", pill: "#0048E2", pillText: "#FFFFFF", surface: "rgba(255,255,255,.94)", muted: "rgba(255,255,255,.75)", select: "rgba(0,72,226,.55)", shadow: true },
     ...(spec.grounds ?? {}),
   };
+  const defaultGround = spec.theme === "paper" ? "paper" : "cream";
 
   const SIZES = { xs: 30, s: 46, m: 66, l: 96, xl: 140, xxl: 190 };
   const FONTS = {
@@ -94,7 +99,7 @@
   const CURSOR = '<svg viewBox="0 0 24 24" width="100%" height="100%"><path d="M4 2.5l15 9.2-6.6 1.4 3.9 7.6-3 1.5-3.9-7.6L4 19.3z" fill="#111" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>';
 
   const root = el("div", "ktv-root", document.body, {
-    position: "relative", width: `${W}px`, height: `${H}px`, overflow: "hidden", direction: dir,
+    position: "relative", width: `${W}px`, height: `${H}px`, overflow: "hidden", direction: dir, background: spec.footage ? "transparent" : "#000",
   });
   const svgNS = "http://www.w3.org/2000/svg";
   const defs = document.createElementNS(svgNS, "svg");
@@ -195,6 +200,7 @@
     );
 
   const items = [];
+  const entryById = new Map();
 
   function buildText(item, host, g) {
     const lines = parseWords(item.text);
@@ -205,6 +211,7 @@
       fontFamily: `"${family}"`, fontWeight: String(weight), fontSize: `${size}px`,
       lineHeight: String(item.leading ?? (item.font === "display" ? 1.12 : 1.38)), color: item.color ? palette[item.color] ?? item.color : g.fg,
       display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
+      textShadow: g.shadow ? `0 ${px(4)} ${px(22)} rgba(0,0,0,.6)` : "none",
     });
     const words = [];
     const rows = [];
@@ -223,10 +230,10 @@
     });
     const sel = item.select
       ? { rects: rows.map(() => el("div", "ktv-select", box, { position: "absolute", background: g.select, borderRadius: px(6), pointerEvents: "none", zIndex: "-1" })),
-          caret: el("div", "ktv-caret", box, { position: "absolute", width: px(4), background: g.bg === palette.cream ? palette.blue : "#FFFFFF", borderRadius: px(2) }) }
+          caret: el("div", "ktv-caret", box, { position: "absolute", width: px(4), background: g.light ? g.accent : "#FFFFFF", borderRadius: px(2) }) }
       : null;
     const strikes = item.strike
-      ? rows.map(() => el("div", "ktv-strike", box, { position: "absolute", height: `${Math.max(4, size * 0.075)}px`, borderRadius: px(99), background: item.strike.color ? palette[item.strike.color] ?? item.strike.color : g.bg === palette.cream ? palette.blue : palette.periwinkle, transformOrigin: dir === "rtl" ? "right center" : "left center", pointerEvents: "none" }))
+      ? rows.map(() => el("div", "ktv-strike", box, { position: "absolute", height: `${Math.max(4, size * 0.075)}px`, borderRadius: px(99), background: item.strike.color ? palette[item.strike.color] ?? item.strike.color : g.light ? g.accent : g.accent === palette.blueAccent ? "#FFFFFF" : g.accent, transformOrigin: dir === "rtl" ? "right center" : "left center", pointerEvents: "none" }))
       : null;
     if (sel || strikes) box.style.position = "relative";
     return { box, words, rows, sel, strikes, gap: 0.27 * size };
@@ -327,7 +334,8 @@
     const wrap = el("div", "", host, { display: "flex", justifyContent: "center" });
     const node = el("div", "ktv-pill", wrap, {
       background: g.pill, color: g.pillText, fontFamily: `"${FONTS.text}"`, fontWeight: "700",
-      fontSize: px(SIZES[item.size] ?? item.size ?? 60), padding: `${px(4)} ${px(34)} ${px(12)}`, borderRadius: px(999),
+      fontSize: px(SIZES[item.size] ?? item.size ?? 60), padding: item.style === "banner" ? `${px(10)} ${px(40)} ${px(16)}` : `${px(4)} ${px(34)} ${px(12)}`, borderRadius: item.style === "banner" ? px(6) : px(999),
+      boxShadow: item.style === "banner" ? `0 ${px(18)} ${px(40)} ${px(-12)} rgba(0,0,0,.45)` : "none",
       lineHeight: "1.3", whiteSpace: "nowrap",
     });
     node.textContent = item.text;
@@ -342,9 +350,9 @@
     const disc = el("div", "", cell, {
       position: "absolute", inset: "0", borderRadius: "50%", display: "grid", placeItems: "center",
       background: item.fill ? palette[item.fill] ?? item.fill : g.surface,
-      boxShadow: g.bg === palette.cream ? `0 ${px(10)} ${px(26)} rgba(60,40,20,.14)` : "none",
+      boxShadow: g.light ? `0 ${px(10)} ${px(26)} rgba(60,40,20,.14)` : "none",
     });
-    const iconColor = item.iconColor ? palette[item.iconColor] ?? item.iconColor : g.bg === palette.cream ? palette.blue : "#FFFFFF";
+    const iconColor = item.iconColor ? palette[item.iconColor] ?? item.iconColor : g.light ? g.accent : "#FFFFFF";
     disc.innerHTML = icon(item.icon ?? "dot", d * 0.46, iconColor, 2.4);
     return { node: disc, ring, grow: new Grow(wrap, "y") };
   }
@@ -355,8 +363,8 @@
       const row = el("div", "", box, { position: "relative", display: "flex", alignItems: "center", gap: px(16), padding: `${px(6)} ${px(10)} ${px(10)}` });
       const label = el("span", "", row, { fontFamily: `"${FONTS.text}"`, fontWeight: "700", fontSize: px(SIZES[item.size] ?? item.size ?? 52), color: g.fg, whiteSpace: "nowrap" });
       label.textContent = entry.text;
-      const tick = el("span", "", row, { width: px(34), height: px(34), borderRadius: "50%", background: g.bg === palette.cream ? palette.blue : g.accent, display: "grid", placeItems: "center", flex: "none" });
-      tick.innerHTML = icon("check", 22 * U, g.bg === palette.cream ? "#FFFFFF" : g.bg, 3.2);
+      const tick = el("span", "", row, { width: px(34), height: px(34), borderRadius: "50%", background: g.light ? g.accent : g.accent, display: "grid", placeItems: "center", flex: "none" });
+      tick.innerHTML = icon("check", 22 * U, g.light ? "#FFFFFF" : g.bg === "transparent" ? "#111111" : g.bg, 3.2);
       const rule = el("div", "", row, { position: "absolute", bottom: "0", insetInlineStart: "0", height: px(2), background: g.fg, opacity: ".14", width: "0%" });
       return { entry, row, label, tick, rule, grow: new Grow(row, "y") };
     });
@@ -517,9 +525,9 @@
   function buildCta(item, host, g) {
     const wrap = el("div", "", host, { display: "flex", justifyContent: "center", position: "relative" });
     const btn = el("div", "", wrap, {
-      position: "relative", height: px(item.h ?? 88), borderRadius: px(999), background: palette.blue, color: "#FFFFFF",
+      position: "relative", height: px(item.h ?? 88), borderRadius: px(999), background: g.light ? g.accent : g.pill, color: "#FFFFFF",
       display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", whiteSpace: "nowrap",
-      boxShadow: `0 ${px(16)} ${px(34)} ${px(-10)} rgba(37,52,147,.55)`, fontFamily: `"${FONTS.text}"`, fontWeight: "700", fontSize: px(item.size ?? 44),
+      boxShadow: `0 ${px(16)} ${px(34)} ${px(-10)} rgba(0,0,0,.35)`, fontFamily: `"${FONTS.text}"`, fontWeight: "700", fontSize: px(item.size ?? 44),
     });
     const label = el("span", "", btn, { display: "inline-flex", alignItems: "center", gap: px(16), padding: `0 ${px(36)}` });
     label.innerHTML = `<span>${item.text}</span>${icon("arrow-up", 30 * U, "#FFFFFF", 2.6)}`;
@@ -583,10 +591,166 @@
     return { node };
   }
 
+  function buildHeading(item, host, g) {
+    const data = buildText({ ...item, size: item.size ?? 74, weight: item.weight ?? 700 }, host, g);
+    const top = el("div", "", data.box, { display: "flex", alignItems: "center", gap: px(16), justifyContent: "center" });
+    data.box.insertBefore(top, data.box.firstChild);
+    const badge = el("div", "", top, {
+      minWidth: px(62), height: px(68), padding: `0 ${px(14)}`, borderRadius: px(12), background: g.light ? g.accent : g.pill, color: "#FFFFFF",
+      display: "grid", placeItems: "center", fontFamily: `"${FONTS.display}"`, fontWeight: "800", fontSize: px(52), lineHeight: "1", flex: "none",
+    });
+    badge.textContent = String(item.n ?? 1);
+    top.appendChild(data.rows[0].row);
+    const bar = el("div", "", data.box, { width: px(item.bar ?? 230), height: px(9), borderRadius: px(9), background: g.light ? g.accent : g.accent, marginTop: px(18), transformOrigin: "center" });
+    return { ...data, badge, bar };
+  }
+
+  function drawHeading(item, data, t) {
+    drawText(item, data, t);
+    revealStyle(data.badge, t, item.words[0].t - 0.05, "scale");
+    const k = ease.inOut(prog(t, item.endT - 0.05, 0.45));
+    data.bar.style.transform = `scaleX(${k.toFixed(4)})`;
+    data.bar.style.opacity = k > 0 ? "1" : "0";
+  }
+
+  const SHAPES = {
+    ellipse: (w, h) => `M ${w * 0.62} ${h * 0.04} C ${w * 1.02} ${h * 0.02}, ${w * 1.04} ${h * 0.92}, ${w * 0.5} ${h * 0.97} C ${w * 0.02} ${h * 1.0}, ${-w * 0.02} ${h * 0.12}, ${w * 0.48} ${h * 0.05} C ${w * 0.6} ${h * 0.03}, ${w * 0.7} ${h * 0.06}, ${w * 0.76} ${h * 0.1}`,
+    bracket: (w, h) => `M 0 0 L 0 ${h * 0.55} L ${w} ${h * 0.55} L ${w} 0 M ${w / 2} ${h * 0.55} L ${w / 2} ${h}`,
+    underline: (w, h) => `M 0 ${h * 0.6} C ${w * 0.25} ${h * 0.2}, ${w * 0.5} ${h * 0.9}, ${w * 0.75} ${h * 0.45} S ${w} ${h * 0.3}, ${w} ${h * 0.4}`,
+    cross: (w, h) => `M ${w * 0.04} ${h * 0.04} L ${w * 0.96} ${h * 0.96} M ${w * 0.96} ${h * 0.04} L ${w * 0.04} ${h * 0.96}`,
+    check: (w, h) => `M ${w * 0.05} ${h * 0.55} L ${w * 0.38} ${h * 0.9} L ${w * 0.95} ${h * 0.08}`,
+    box: (w, h) => `M ${w * 0.02} ${h * 0.06} L ${w * 0.98} ${h * 0.02} L ${w * 0.97} ${h * 0.96} L ${w * 0.03} ${h * 0.98} Z`,
+  };
+
+  function buildAnnotate(item, host, g) {
+    const w = (item.w ?? 300) * U;
+    const h = (item.h ?? 160) * U;
+    const color = item.color ? palette[item.color] ?? item.color : item.shape === "cross" ? "#E53935" : item.shape === "arrow" ? "#F5C400" : g.light ? g.accent : g.bg === "transparent" ? "#F7FF59" : g.accent;
+    const node = el("div", "ktv-annotate", host, {
+      position: "absolute", left: `${W / 2 + (item.x ?? 0) * U - w / 2}px`, top: `${H * (item.cy ?? 0.46) + (item.y ?? 0) * U - h / 2}px`, width: `${w}px`, height: `${h}px`,
+      pointerEvents: "none", zIndex: "50", transform: `rotate(${item.rot ?? 0}deg)`, overflow: "visible",
+    });
+    if (item.shape === "arrow") {
+      node.innerHTML = `<svg viewBox="0 0 100 140" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="overflow:visible;filter:drop-shadow(0 ${3 * U}px ${6 * U}px rgba(0,0,0,.35))"><path d="M36 0 H64 V82 H92 L50 138 L8 82 H36 Z" fill="${color}"/></svg>`;
+      return { node, svg: node.firstChild };
+    }
+    const stroke = (item.stroke ?? (item.shape === "cross" ? 16 : 9)) * U;
+    node.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="overflow:visible"><path d="${SHAPES[item.shape ?? "ellipse"](w, h)}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1"/></svg>`;
+    return { node, svg: node.firstChild, path: node.querySelector("path") };
+  }
+
+  function targetBox(entry) {
+    const d = entry.data;
+    const target = d.cards?.[0]?.card ?? d.box ?? d.node ?? entry.wrap;
+    const sc = scenes[entry.scene];
+    const camRect = sc.cam.getBoundingClientRect();
+    const k = camRect.width / W || 1;
+    const r = target.getBoundingClientRect();
+    return { x: (r.left - camRect.left) / k, y: (r.top - camRect.top) / k, w: r.width / k, h: r.height / k };
+  }
+
+  function placeOnTarget(item, data) {
+    const entry = entryById.get(String(item.target).replace(/^#/, ""));
+    if (!entry) throw new Error(`annotate target ${item.target} not found`);
+    let { x, y, w, h } = targetBox(entry);
+    const [ax0, ay0, ax1, ay1] = item.area ?? [0, 0, 1, 1];
+    x += w * ax0;
+    y += h * ay0;
+    w *= ax1 - ax0;
+    h *= ay1 - ay0;
+    const pad = (item.pad ?? (item.shape === "cross" ? 0 : 18)) * U;
+    const dx = (item.x ?? 0) * U;
+    const dy = (item.y ?? 0) * U;
+    let box;
+    const shape = item.shape ?? "ellipse";
+    if (shape === "bracket") box = { x: x + w * 0.06, y: y + h + pad, w: w * 0.88, h: (item.h ?? 70) * U };
+    else if (shape === "underline") box = { x: x - pad, y: y + h - h * 0.08, w: w + 2 * pad, h: (item.h ?? 34) * U };
+    else if (shape === "arrow") {
+      const aw = (item.w ?? 96) * U;
+      const ah = aw * 1.4;
+      const side = item.side ?? "top";
+      box = side === "bottom" ? { x: x + w / 2 - aw / 2, y: y + h + pad, w: aw, h: ah }
+        : side === "left" ? { x: x - ah - pad, y: y + h / 2 - aw / 2, w: aw, h: ah }
+        : side === "right" ? { x: x + w + pad, y: y + h / 2 - aw / 2, w: aw, h: ah }
+        : { x: x + w / 2 - aw / 2, y: y - ah - pad, w: aw, h: ah };
+      const rot = { top: 0, bottom: 180, left: -90, right: 90 }[side];
+      Object.assign(data.node.style, { left: `${box.x + dx}px`, top: `${box.y + dy}px`, width: `${box.w}px`, height: `${box.h}px`, transform: `rotate(${(item.rot ?? 0) + rot}deg)` });
+      return;
+    } else box = { x: x - pad, y: y - pad, w: w + 2 * pad, h: h + 2 * pad };
+    Object.assign(data.node.style, { left: `${box.x + dx}px`, top: `${box.y + dy}px`, width: `${box.w}px`, height: `${box.h}px` });
+    data.svg.setAttribute("viewBox", `0 0 ${box.w} ${box.h}`);
+    data.svg.setAttribute("width", String(box.w));
+    data.svg.setAttribute("height", String(box.h));
+    data.path.setAttribute("d", SHAPES[shape](box.w, box.h));
+  }
+
+  function drawAnnotate(item, data, t) {
+    const outT = item.out === undefined ? undefined : timeOf(item.out);
+    const visible = t >= item.at && (outT === undefined || t < outT + 0.3);
+    data.node.style.display = visible ? "" : "none";
+    if (!visible) return;
+    if (item.target) placeOnTarget(item, data);
+    const fade = outT === undefined ? 1 : 1 - prog(t, outT, 0.3);
+    data.node.style.opacity = String(fade);
+    if (data.path) {
+      const k = ease.inOut(prog(t, item.at, item.dur ?? (item.shape === "cross" ? 0.35 : 0.55)));
+      data.path.setAttribute("stroke-dashoffset", String((1 - k).toFixed(4)));
+      return;
+    }
+    const k = ease.back(prog(t, item.at, 0.35));
+    const bob = Math.sin((t - item.at) * 7) * 10 * U * (1 - prog(t, item.at + 1.2, 0.6));
+    data.svg.style.transform = `translateY(${(bob - (1 - k) * 60 * U).toFixed(2)}px) scale(${lerp(0.4, 1, k).toFixed(4)})`;
+    data.svg.style.opacity = String(clamp(k * 2));
+  }
+
+  function buildSparkle(item, host, g) {
+    const d = (item.size ?? 220) * U;
+    const wrap = el("div", "", host, { display: "flex", justifyContent: "center" });
+    const node = el("div", "", wrap, { width: `${d}px`, height: `${d}px` });
+    const color = item.color ? palette[item.color] ?? item.color : g.light ? g.accent : g.bg === palette.blue || g.bg === "#0048E2" ? "#FFFFFF" : "#0048E2";
+    const pts = [];
+    for (let i = 0; i < 16; i++) {
+      const a = (Math.PI * 2 * i) / 16 - Math.PI / 2;
+      const r = i % 2 === 0 ? (i % 4 === 0 ? 50 : 36) : 9;
+      pts.push(`${(50 + Math.cos(a) * r).toFixed(2)},${(50 + Math.sin(a) * r).toFixed(2)}`);
+    }
+    node.innerHTML = `<svg viewBox="0 0 100 100" width="100%" height="100%"><polygon points="${pts.join(" ")}" fill="${color}"/></svg>`;
+    return { node, grow: new Grow(wrap, "y") };
+  }
+
+  function buildCountdown(item, host, g) {
+    const d = (item.size ?? 70) * U;
+    const wrap = el("div", "", host, { display: "flex", justifyContent: "center" });
+    const node = el("div", "", wrap, {
+      width: `${d}px`, height: `${d}px`, borderRadius: "50%", border: `${px(4)} solid ${g.light ? g.accent : g.fg}`, display: "grid", placeItems: "center",
+      fontFamily: `"${FONTS.display}"`, fontWeight: "800", fontSize: `${d * 0.5}px`, color: g.light ? g.accent : g.fg, lineHeight: "1",
+    });
+    return { node, grow: new Grow(wrap, "y") };
+  }
+
+  function drawCountdown(item, data, t) {
+    const from = item.from ?? 3;
+    const step = item.step ?? 0.8;
+    const i = Math.min(from - 1, Math.max(0, Math.floor((t - item.at) / step)));
+    data.node.textContent = String(from - i);
+    const local = prog(t, item.at + i * step, 0.3);
+    data.node.style.transform = `scale(${lerp(1.35, 1, ease.out(local)).toFixed(3)})`;
+  }
+
   const scenes = (spec.scenes ?? []).map((sc, si) => {
-    const g = grounds[sc.bg ?? "cream"];
+    const g = grounds[sc.bg ?? defaultGround];
     if (!g) throw new Error(`Unknown ground ${sc.bg}`);
     const node = el("div", "ktv-scene", root, { position: "absolute", inset: "0", background: g.bg, overflow: "hidden", visibility: "hidden" });
+    if (sc.rules && g.rules) {
+      const gapPx = (sc.ruleGap ?? 58) * U;
+      node.style.backgroundImage = `repeating-linear-gradient(to bottom, transparent 0, transparent ${gapPx - 2 * U}px, ${g.rules} ${gapPx - 2 * U}px, ${g.rules} ${gapPx}px)`;
+      node.style.backgroundPosition = `0 ${(sc.ruleOffset ?? 18) * U}px`;
+    }
+    if (spec.brand && sc.brand !== false) {
+      const logo = el("img", "ktv-brand", node, { position: "absolute", left: "50%", top: `${(spec.brand.y ?? 0.035) * 100}%`, width: px(spec.brand.w ?? 140), transform: "translateX(-50%)", zIndex: "40" });
+      logo.src = g.light || !spec.brand.srcOnDark ? spec.brand.src : spec.brand.srcOnDark;
+    }
+    const ring = (sc.enter ?? "") === "iris" ? el("div", "ktv-iris", root, { position: "absolute", borderRadius: "50%", border: `${px(10)} solid ${g.light ? g.accent : "#0048E2"}`, pointerEvents: "none", display: "none", zIndex: "500" }) : null;
     const cam = el("div", "ktv-cam", node, { position: "absolute", inset: "0", transformOrigin: "50% 45%", willChange: "transform, filter" });
     const anchor = sc.layout ?? "center";
     const stack = el("div", "ktv-stack", cam, {
@@ -609,23 +773,92 @@
       footer.textContent = spec.footer.text;
     }
     const scItems = (sc.items ?? []).map((it) => {
-      const wrap = el("div", "ktv-item", stack, { position: "relative", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", overflow: "visible" });
+      const floating = it.type === "annotate";
+      const wrap = floating
+        ? el("div", "ktv-float", cam, { position: "absolute", inset: "0", pointerEvents: "none", zIndex: "60" })
+        : el("div", "ktv-item", stack, { position: "relative", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", overflow: "visible" });
       const entry = { spec: it, wrap, g, scene: si };
       if (it.id) {
         if (!/^\w+$/.test(it.id)) throw new Error(`Item id "${it.id}" must be letters, digits or _`);
         ids.set(it.id, it);
+        entryById.set(it.id, entry);
       }
       const b = {
         text: buildText, pill: buildPill, badge: buildBadge, checklist: buildChecklist, cards: buildCards,
         phone: buildPhone, meter: buildMeter, cta: buildCta, image: buildImage, gap: buildGap,
+        heading: buildHeading, annotate: buildAnnotate, sparkle: buildSparkle, countdown: buildCountdown,
       }[it.type ?? "text"];
       if (!b) throw new Error(`Unknown item type ${it.type}`);
       entry.data = b(it, wrap, g);
       items.push(entry);
       return entry;
     });
-    return { spec: sc, node, cam, stack, footer, items: scItems, g, mb: motionBlur() };
+    return { spec: sc, node, cam, stack, footer, ring, items: scItems, g, mb: motionBlur() };
   });
+
+  function buildCaptions() {
+    const c = spec.captions;
+    const words = (spec.captionWords ?? []).filter((w) => w.text && !/^\[.*\]$/.test(w.text));
+    const per = c.words ?? 3;
+    const maxGap = c.maxGap ?? 0.45;
+    const chunks = [];
+    let cur = [];
+    words.forEach((w, i) => {
+      cur.push(w);
+      const next = words[i + 1];
+      const breakHere = !next || cur.length >= per || next.start - w.end > maxGap || /[.,،؟?!:؛…]$/.test(w.text);
+      if (breakHere) {
+        chunks.push(cur);
+        cur = [];
+      }
+    });
+    const lead = c.lead ?? 0.08;
+    const layer = el("div", "ktv-captions", root, { position: "absolute", inset: "0", pointerEvents: "none", zIndex: "900" });
+    const color = c.color ? palette[c.color] ?? c.color : "#F7FF59";
+    const keys = (c.keywords ?? []).map((k) => k.replace(/[^\p{L}\p{N}]/gu, ""));
+    return chunks.map((chunk, ci) => {
+      const node = el("div", "", layer, {
+        position: "absolute", left: px(60), right: px(60), top: `${(c.y ?? 0.72) * 100}%`, transform: "translateY(-50%)",
+        display: "flex", justifyContent: "center", flexWrap: "wrap", gap: `0 ${px(18)}`, direction: dir,
+        fontFamily: `"${c.font === "text" ? FONTS.text : FONTS.display}"`, fontWeight: c.font === "text" ? "700" : "800", fontSize: px(c.size ?? 74), lineHeight: "1.15",
+        color: "#FFFFFF", paintOrder: "stroke fill", WebkitTextStroke: `${(c.stroke ?? 9) * U}px #0B0B0F`,
+        textShadow: `0 ${px(6)} ${px(18)} rgba(0,0,0,.55)`, visibility: "hidden",
+      });
+      const spans = chunk.map((w) => {
+        const sp = el("span", "", node);
+        sp.textContent = w.text.replace(/[.,،؟?!:؛…]+$/u, "");
+        const bare = w.text.replace(/[^\p{L}\p{N}]/gu, "");
+        return { sp, w, key: keys.some((k) => k && (bare.includes(k) || k.includes(bare))) };
+      });
+      const start = chunk[0].start - lead;
+      const nextStart = chunks[ci + 1] ? chunks[ci + 1][0].start - lead : Infinity;
+      const end = Math.min(nextStart, chunk[chunk.length - 1].end + (c.hold ?? 0.5));
+      return { node, spans, start, end };
+    });
+  }
+
+  function drawCaptions(t) {
+    const c = spec.captions;
+    const scene = scenes.find((sc) => t >= sc.start && t < sc.end);
+    const off = scene && scene.spec.captions === false;
+    const mode = c.highlight ?? "active";
+    const color = c.color ? palette[c.color] ?? c.color : "#F7FF59";
+    captions.forEach((cap) => {
+      const on = !off && t >= cap.start && t < cap.end;
+      cap.node.style.visibility = on ? "" : "hidden";
+      if (!on) return;
+      const k = prog(t, cap.start, 0.16);
+      cap.node.style.transform = `translateY(-50%) scale(${lerp(0.82, 1, ease.back(k)).toFixed(4)})`;
+      cap.node.style.filter = k < 1 ? `blur(${((1 - k) * 6 * U).toFixed(2)}px)` : "";
+      cap.node.style.opacity = String(clamp(k * 2.5));
+      cap.spans.forEach(({ sp, w, key }) => {
+        const lit = mode === "active" ? t >= w.start - 0.05 && t < w.end + 0.08 : mode === "keyword" ? key : false;
+        sp.style.color = lit ? color : "#FFFFFF";
+      });
+    });
+  }
+
+  const textual = (it) => ["text", "heading"].includes(it.type ?? "text");
 
   function resolveTimes() {
     let last = 0;
@@ -636,7 +869,7 @@
         pending.push(entry);
         if (typeof it.at !== "string") {
           it.at = it.at ?? last;
-          if ((it.type ?? "text") === "text") timeText(it, entry.data);
+          if (textual(it)) timeText(it, entry.data);
           last = it.endT ?? it.at;
         }
       });
@@ -647,7 +880,7 @@
         if (typeof it.at === "string") {
           try {
             it.at = timeOf(it.at);
-            if ((it.type ?? "text") === "text") timeText(it, entry.data);
+            if (textual(it)) timeText(it, entry.data);
           } catch (err) {
             if (pass === 3) throw err;
           }
@@ -656,23 +889,26 @@
     }
     scenes.forEach((sc, i) => {
       const s = sc.spec;
-      const firstAt = sc.items.length ? Math.min(...sc.items.map((e) => e.spec.at)) : 0;
+      const timed = sc.items.filter((e) => e.spec.type !== "annotate");
+      const firstAt = timed.length ? Math.min(...timed.map((e) => e.spec.at)) : 0;
       sc.start = s.start !== undefined ? timeOf(s.start) : i === 0 ? 0 : Math.max(0, firstAt - (s.preroll ?? spec.preroll ?? ((s.enter ?? "cut").startsWith("push") ? 0.32 : 0.2)));
     });
     const clicks = items.filter((e) => e.spec.type === "cta").map((e) => ctaClick(e.spec) + 1.8);
-    const total = spec.duration ?? Math.max(...items.map((e) => (e.spec.endT ?? e.spec.at) + 1.2), ...clicks, (spec.voiceLength ?? 0) + 0.8);
+    const total = spec.duration ?? Math.max(0, ...items.map((e) => (e.spec.endT ?? e.spec.at) + 1.2), ...clicks, (spec.voiceLength ?? 0) + 0.8, spec.footageLength ?? 0);
     scenes.forEach((sc, i) => {
       sc.end = sc.spec.end !== undefined ? timeOf(sc.spec.end) : i < scenes.length - 1 ? scenes[i + 1].start : total;
       sc.items.forEach((e) => {
         if (e.spec.type === "phone" && e.spec.endT === undefined) e.spec.endT = sc.end;
       });
     });
+    if (spec.captions) captions = buildCaptions();
     window.KTV.duration = total;
     window.KTV.cues = scenes.map((sc) => ({ start: sc.start, end: sc.end, enter: sc.spec.enter ?? "cut", exit: sc.spec.exit ?? "none" }));
-    window.KTV.events = items.filter((e) => ["pill", "badge", "cta"].includes(e.spec.type)).map((e) => ({ type: e.spec.type, at: e.spec.at, click: e.spec.type === "cta" ? ctaClick(e.spec) : undefined }));
+    window.KTV.events = items.filter((e) => ["pill", "badge", "cta", "sparkle", "annotate"].includes(e.spec.type)).map((e) => ({ type: e.spec.type, at: e.spec.at, click: e.spec.type === "cta" ? ctaClick(e.spec) : undefined }));
   }
 
   const PUSH = spec.pushDuration ?? 0.24;
+  let captions = [];
 
   function drawItem(entry, t) {
     const { spec: it, data, wrap } = entry;
@@ -682,6 +918,14 @@
     if (type === "text") {
       drawText(it, data, t);
       wrap.style.height = "";
+      return;
+    }
+    if (type === "heading") {
+      drawHeading(it, data, t);
+      return;
+    }
+    if (type === "annotate") {
+      drawAnnotate(it, data, t);
       return;
     }
     if (type === "gap") return;
@@ -712,7 +956,13 @@
     }
     const node = data.node;
     if (exitStyle(node, t, outT, it.at)) return;
-    revealStyle(node, t, it.at, type === "pill" || type === "badge" ? "scale" : it.reveal ?? "soft");
+    revealStyle(node, t, it.at, type === "pill" || type === "badge" || type === "countdown" ? "scale" : type === "sparkle" ? "pop" : it.reveal ?? "soft");
+    if (type === "countdown") drawCountdown(it, data, t);
+    if (type === "sparkle") {
+      const spin = (t - it.at) * 40 + 45 * (1 - ease.out(prog(t, it.at, 0.6)));
+      const pulse = 1 + Math.sin((t - it.at) * 3) * 0.04;
+      data.node.style.transform = `${data.node.style.transform} rotate(${spin.toFixed(2)}deg) scale(${pulse.toFixed(4)})`;
+    }
     if (type === "badge") {
       const rk = prog(t, it.at + 0.15, 0.9);
       data.ring.style.opacity = rk > 0 && rk < 1 ? String((1 - rk) * 0.6) : "0";
@@ -761,7 +1011,7 @@
     scenes.forEach((sc, i) => {
       const next = scenes[i + 1];
       const nextEnter = next?.spec.enter ?? "cut";
-      const tail = nextEnter.startsWith("push") ? PUSH : 0;
+      const tail = nextEnter.startsWith("push") ? PUSH : nextEnter === "iris" ? 0.5 : 0;
       const live = t >= sc.start && t < sc.end + tail;
       sc.node.style.visibility = live ? "" : "hidden";
       if (!live) return;
@@ -785,6 +1035,15 @@
         mbx = Math.sin(Math.PI * k) * 60;
       }
       sc.node.style.transform = x ? `translateX(${x.toFixed(2)}px)` : "";
+      if (enter === "iris") {
+        const IRIS = 0.5;
+        const k = ease.inOut(prog(t, sc.start, IRIS));
+        const r = k * Math.hypot(W, H) * 0.55;
+        const opening = t < sc.start + IRIS;
+        sc.node.style.clipPath = opening ? `circle(${r.toFixed(1)}px at 50% 46%)` : "";
+        sc.ring.style.display = opening && k > 0 ? "" : "none";
+        if (opening) Object.assign(sc.ring.style, { left: `${W / 2 - r}px`, top: `${H * 0.46 - r}px`, width: `${2 * r}px`, height: `${2 * r}px`, opacity: String(1 - k * 0.6) });
+      }
       sc.mb.apply(sc.node, mbx * U, 0);
       camera(sc, t);
       sc.items.forEach((entry) => drawItem(entry, t));
@@ -793,9 +1052,11 @@
         sc.footer.style.opacity = String(f.until !== undefined && t > timeOf(f.until) ? 0 : 1);
       }
     });
+    if (captions.length) drawCaptions(t);
   }
 
   async function ready() {
+    await Promise.all(Object.values(FONTS).flatMap((family) => [500, 700, 800].map((w) => document.fonts.load(`${w} 40px "${family}"`, "عربي Ab1"))));
     await document.fonts.ready;
     const missing = Object.values(FONTS).filter((family) => ![...document.fonts].some((f) => f.family.replace(/"/g, "") === family && f.status === "loaded"));
     if (missing.length) throw new Error(`Fonts did not load: ${missing.join(", ")}`);

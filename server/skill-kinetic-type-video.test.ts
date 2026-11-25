@@ -21,7 +21,7 @@ describe("kinetic-type-video skill", () => {
   });
 
   it("ships every file the guide tells the agent to run", () => {
-    for (const file of ["voice.mjs", "align.mjs", "render.mjs", "mockup.mjs", "mockups-example.html", "browser.mjs", "stage.js", "example.json", "package.json"]) {
+    for (const file of ["voice.mjs", "align.mjs", "render.mjs", "mockup.mjs", "mockups-example.html", "browser.mjs", "example-paper.json", "stage.js", "example.json", "package.json"]) {
       expect(guide, file).toContain(file);
       expect(existsSync(join(SKILL_DIR, file)), file).toBe(true);
     }
@@ -29,8 +29,8 @@ describe("kinetic-type-video skill", () => {
 
   it("keeps the example spec to item types the engine draws", () => {
     const engine = readFileSync(join(SKILL_DIR, "stage.js"), "utf8");
-    const example = JSON.parse(readFileSync(join(SKILL_DIR, "example.json"), "utf8")) as { scenes: Array<{ items: Array<{ type?: string; id?: string }> }> };
-    for (const item of example.scenes.flatMap((scene) => scene.items)) {
+    const examples = ["example.json", "example-paper.json"].map((file) => JSON.parse(readFileSync(join(SKILL_DIR, file), "utf8")) as { scenes: Array<{ items: Array<{ type?: string; id?: string }> }> });
+    for (const item of examples.flatMap((example) => example.scenes.flatMap((scene) => scene.items))) {
       const type = item.type ?? "text";
       expect(engine, type).toMatch(new RegExp(`\\b${type}: build`, "i"));
       if (item.id) expect(item.id).toMatch(/^\w+$/);
