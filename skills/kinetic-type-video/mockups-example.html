@@ -71,6 +71,33 @@
   .comment .in { flex: 1; height: 62px; border-radius: 999px; box-shadow: inset 0 0 0 1.5px rgba(17,17,17,.15); display: flex; align-items: center; padding: 0 24px; font-size: 28px; font-weight: 700; }
   .caret { width: 3px; height: 32px; background: var(--blue); margin-inline-start: 4px; border-radius: 2px; }
   .comment .send { width: 62px; height: 62px; border-radius: 50%; background: var(--blue); display: grid; place-items: center; flex: none; }
+  .one { width: 520px; padding: 26px 32px; direction: rtl; }
+  .doc { width: 560px; padding: 30px 34px 28px; direction: ltr; }
+  .doc .top { display: flex; align-items: center; gap: 12px; }
+  .doc .top b { font-size: 26px; }
+  .doc .id { margin-left: auto; font-size: 15px; font-weight: 600; color: rgba(17,17,17,.48); }
+  .doc .lane { margin-top: 18px; font-size: 22px; font-weight: 700; }
+  .doc .kv { display: flex; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--line); font-size: 18px; }
+  .doc .kv:first-of-type { margin-top: 14px; }
+  .doc .kv b { font-size: 20px; }
+  .sig { margin-top: 18px; display: flex; align-items: end; gap: 14px; }
+  .sig .line { flex: 1; border-bottom: 2px solid var(--ink); height: 46px; position: relative; }
+  .sig .line svg { position: absolute; left: 10px; bottom: 2px; }
+  .sent { font-size: 16px; font-weight: 700; color: #fff; background: var(--blue); padding: 9px 16px; border-radius: 999px; }
+  .calc { width: 560px; padding: 30px 36px; direction: ltr; }
+  .calc .row { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 0; font-size: 26px; }
+  .calc .row span { color: rgba(17,17,17,.5); font-size: 21px; }
+  .calc .tot { border-top: 2px dashed rgba(17,17,17,.18); margin-top: 8px; padding-top: 18px; font-weight: 800; font-size: 44px; color: var(--blue); }
+  .truck { width: 560px; padding: 26px 30px; direction: ltr; }
+  .truck .h { display: flex; align-items: center; gap: 16px; }
+  .truck .ic { width: 66px; height: 66px; border-radius: 18px; background: var(--ink); display: grid; place-items: center; flex: none; }
+  .truck .h b { font-size: 26px; display: block; }
+  .truck .h span { font-size: 17px; }
+  .empty { margin-left: auto; font-size: 15px; font-weight: 800; letter-spacing: .5px; color: #C62828; background: rgba(229,57,53,.12); padding: 7px 13px; border-radius: 999px; }
+  .cap { margin-top: 20px; height: 18px; border-radius: 9px; background: #F0ECE6; overflow: hidden; }
+  .cap i { display: block; width: 4%; height: 100%; background: #E53935; border-radius: 9px; }
+  .truck .foot { display: flex; justify-content: space-between; margin-top: 14px; font-size: 17px; }
+  .truck .foot b { color: #C62828; }
 </style>
 
 <div data-mockup="clocks" class="card clocks">
@@ -155,4 +182,25 @@
     <div class="in">مهتم<span class="caret"></span></div>
     <div class="send"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></div>
   </div>
+</div>
+
+<div data-mockup="truck" class="card truck">
+  <div class="h"><div class="ic"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linejoin="round"><path d="M2.5 6.5h11v9.5h-11zM13.5 9.5h4.2l3.3 3.4v3.1h-7.5z"/><circle cx="6.5" cy="17.4" r="1.9" fill="#111"/><circle cx="17.2" cy="17.4" r="1.9" fill="#111"/></svg></div><div><b>Truck #214</b><span class="muted">Dallas, TX · 06:00</span></div><div class="empty">EMPTY</div></div>
+  <div class="cap"><i></i></div>
+  <div class="foot"><span class="muted">Trailer load</span><span><b>0 lb</b> <span class="muted">/ 44,000 lb</span></span></div>
+</div>
+
+<div data-mockup="ratecon" class="card doc">
+  <div class="top"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#253493" stroke-width="2"><path d="M6 2.5h8l4 4v15H6z"/><path d="M14 2.5v4h4M9 12h6M9 16h6"/></svg><b>Rate Confirmation</b><span class="id num">Load #48213</span></div>
+  <div class="lane">Dallas, TX → Atlanta, GA</div>
+  <div class="kv"><span class="muted">Equipment</span><b>Dry Van · 38,500 lb</b></div>
+  <div class="kv"><span class="muted">Miles</span><b class="num">780</b></div>
+  <div class="kv"><span class="muted">Agreed rate</span><b class="num" style="color:#253493">$2,100.00</b></div>
+  <div class="sig"><div class="line"><svg width="170" height="44" viewBox="0 0 170 44" fill="none" stroke="#111" stroke-width="2.4" stroke-linecap="round"><path d="M4 32c14-26 22-24 18-4s16-24 22-14-4 20 8 10 14-18 20-8 6 12 16 4 18-10 26-6 14 6 30-2"/></svg></div><div class="sent">Sent ✓</div></div>
+</div>
+
+<div data-mockup="calc" class="card calc">
+  <div class="row"><span>Load rate</span><b class="num">$2,100</b></div>
+  <div class="row"><span>Dispatcher fee</span><b class="num">× 8%</b></div>
+  <div class="row tot"><span style="font-size:22px;color:rgba(17,17,17,.5);font-weight:600">You earn</span><span class="num" style="color:#253493;font-size:44px">$168</span></div>
 </div>

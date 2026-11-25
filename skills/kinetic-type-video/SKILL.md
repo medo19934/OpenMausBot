@@ -25,7 +25,8 @@ footage.
 
 ## Files
 
-All in the folder named by this skill's `root`:
+All in this skill's folder, written `<root>` below. OpenMausBot gives it as the skill's `root`, and Claude Code shows it
+as the skill's base directory when the skill loads.
 
 | File | Does |
 |---|---|
@@ -33,7 +34,7 @@ All in the folder named by this skill's `root`:
 | `align.mjs` | Writes the spoken time of every on-screen word into the spec. |
 | `render.mjs` | Renders the spec to stills (to review) or to the final mp4 (1080×1920, 30 fps, −14 LUFS). |
 | `mockup.mjs` | An HTML file of `data-mockup` elements → one transparent 2× PNG each, in the video's fonts and colours. |
-| `mockups-example.html` | Six finished mockups (clocks, laptop, notification, load board, route map, comment box) to copy from. |
+| `mockups-example.html` | Finished mockups to copy from: clocks, laptop, notification, empty truck, load board, route map, rate confirmation, commission sum and comment box. |
 | `browser.mjs` | The fonts and Chromium setup shared by the two renderers. |
 | `example-paper.json` | The paper format with every new prop, renderable without images or audio. |
 | `stage.js` | The animation engine. Every motion is a function of time, so a frame always renders the same. |
@@ -45,13 +46,15 @@ All in the folder named by this skill's `root`:
 1. Make a work folder for the video. Copy `package.json` and `example.json` into it and run `npm install`. If Chromium
    is missing, run `npx playwright install chromium`. ffmpeg must be on the PATH.
 2. Write the script (below) to `script.txt`.
-3. Voice it: `node <root>/voice.mjs script.txt --out vo`. This needs `ELEVENLABS_API_KEY`. It writes `vo.mp3` (processed to
-   sound recorded, below), `vo.timestamps.json` and `vo.stt.json`, a transcript of the final audio. If the person recorded
-   their own voice, transcribe it with word timestamps instead (ElevenLabs speech-to-text or Whisper `verbose_json`).
+3. Voice it (see "The voice" below). Either `node <root>/voice.mjs script.txt --out vo` on the API, or
+   `node <root>/voice.mjs --from take.mp3` for a take downloaded from the ElevenLabs website or recorded by the person.
+   Both write `vo.mp3` and `vo.stt.json`. Transcription needs `ELEVENLABS_API_KEY`. Without one, transcribe with
+   Whisper (`verbose_json` with word timestamps) and pass that file to step 5 instead.
 4. Write `spec.json` (below). Put each on-screen line in its own text item and don't give text items times.
-5. Sync: `node <root>/align.mjs spec.json vo.stt.json --fallback vo.timestamps.json`. The transcript of the real audio
-   sets the timing, and the speech model's own timings fill in loanwords the transcript spells in Latin script. It reports
-   any on-screen word it couldn't place.
+5. Sync: `node <root>/align.mjs spec.json vo.stt.json --fallback vo.timestamps.json` (leave out `--fallback` when there
+   is no timestamps file). The transcript of the real audio sets the timing, and the speech model's own timings fill in
+   loanwords the transcript spells in Latin script. It reports any on-screen word it couldn't place. Write numbers on
+   screen as digits, the way the transcript writes them («780 ميل»، «8%»).
 6. Review stills before you render: `node <root>/render.mjs spec.json --stills auto --safe`. This writes `stills/sheet.png`
    with two frames per scene and TikTok's UI zones shaded red. Look at the sheet, fix what fails the checklist, and
    repeat.
@@ -61,43 +64,41 @@ All in the folder named by this skill's `root`:
 
 ## The voice
 
-The creator's voice is a real person talking; no synthetic voice fully matches that, and pretending otherwise wastes the
-person's time. Choose the source in this order, and say which one you used:
+The creator's voice is a real person talking. Use a real person's voice too, and say which source you used:
 
-1. **The person's own recording.** This is the best by far. A phone voice memo in a quiet room is enough. Run it through
-   `voice.mjs --from memo.mp3 --pitch 0` to tighten the pauses, add presence and transcribe it, or use it as is. Transcribe it for timing (step 5 works
-   with any transcript). Recording yourself is also what the creator does.
-2. **A human-recorded voice.** On a paid ElevenLabs plan, use a professional library voice recorded by a Saudi speaker
-   who licensed it, or an instant clone of **the person's own voice** made from their own recording. Never clone anyone
-   else's voice, including the creator whose style this is.
-3. **The house voice**, a designed voice: `mUrAdOukT8TtEOpp0uKv`, a young Saudi woman in Hijazi dialect. It exists only on
-   the owner's ElevenLabs account and works only with that account's key. `--voice <id>` or `KTV_VOICE_ID` change it.
-   `eleven_v3` is the most expressive; `--model eleven_multilingual_v2` is steadier and less theatrical, so let the
-   person hear both on their hook line before a full take.
+1. **The house voice: Jumana** (`4uJbyDJGijiDphW2T3vP`, "Jumana – Hijazi Voice – Warm"). This is a professional
+   ElevenLabs library voice recorded and licensed by a young Saudi speaker with a soft Hijazi accent. It is the default
+   for every voiceover. Two ways to get a take:
+   - **From the ElevenLabs website** (works on any plan that can use library voices): paste the script there, choose
+     Jumana, model **Eleven v3**, stability 0.5, similarity 0.75, and download the mp3. Then run
+     `node <root>/voice.mjs --from take.mp3` to tighten the pauses, add presence and transcribe it.
+   - **From the API** (a paid plan; `ELEVENLABS_API_KEY` must be set): `node <root>/voice.mjs script.txt --out vo`.
+2. **The person's own recording.** A phone voice memo in a quiet room is enough: `node <root>/voice.mjs --from memo.m4a`.
+3. **Another voice**, only if the person names one: `--voice <id>` or `KTV_VOICE_ID`. Never clone anyone's voice without
+   their consent, including the creator whose style this is. An instant clone of the person's **own** voice, made from
+   their own recording, is fine.
 
-A synthetic take sounds synthetic for three measurable reasons: too many pauses of the same length, a pitch a little
-high, and sound with no room in it. Fix them in this order.
+Every voice goes through `voice.mjs`, which writes `vo.mp3`, `vo.stt.json` (a transcript of the final audio, used for
+timing) and, for API takes, `vo.timestamps.json`.
 
-1. **Write for a human mouth.** The script controls the rhythm more than any setting does.
-   - Use long flowing phrases, and only a few commas. Every «،» and «…» becomes a pause, and a pause after every few words
-     is what sounds like a robot.
-   - Use spoken dialect, with the speaker's own asides: «طيب»، «والمضحك إنه…»، «والله»، «خلاص». Write loanwords in Arabic
-     script (لابتوب، أونلاين).
-   - Add `eleven_v3` emotion tags where a person would actually react: `[curious]` on the hook, `[sighs]` on the setback,
-     `[laughs softly]` on the self-own, `[excited]` on the win, `[whispers]` before the reveal. Use 4–6 a minute; they are
-     acted, never read aloud.
-2. **Generate expressively.** `voice.mjs` defaults to `eleven_v3` at stability 0, its most expressive setting. When credit
-   allows, make two takes (`--stability 0` and `--stability 0.5`) and keep the one with fewer, more varied pauses.
-3. **Humanize (on by default).**
-   - Pauses: about 30% of the longest pauses stay as breaths (0.3–0.7 s), and the rest close to 0.07–0.2 s at varied
-     lengths, the way an editor cuts. The timings shift to match.
-   - Sound: pitch comes down 1.4 semitones (`--pitch`) with the voice's character kept. It also gets warm and present EQ,
-     a de-esser, gentle compression, early room reflections and a faint room tone.
-   - To process an existing take without paying again: `--from take.raw.mp3 --timings take.raw.timestamps.json`. To skip
-     processing, pass `--raw`.
+**Write the script for a human mouth.** The script controls the rhythm more than any setting:
 
-Measured against the human reference (229 Hz, 22 pauses a minute with a spread of 0.28 s), a raw take reads 258 Hz and 25
-pauses with a spread of 0.14; after these steps it reads 239 Hz and 21.5 pauses with a spread of 0.19.
+- Use long flowing phrases and only a few commas. Every «،» and «…» becomes a pause, and a pause every few words sounds
+  like a robot.
+- Use spoken dialect with the speaker's own asides: «طيب»، «والمضحك إنه…»، «والله»، «خلاص». Write loanwords the way
+  they're said (لابتوب، أونلاين، dispatch).
+- For Eleven v3, add a few emotion tags where a person would react: `[curious]` on the hook, `[sighs]` on the setback,
+  `[excited]` on the win, `[whispers]` before the reveal, `[serious]` on the warning, `[warmly]` on the sign-off. Use 4–6
+  a minute; they are acted, never read aloud. Delete them before using Multilingual v2, which would read them.
+- Keep it true. No invented personal success story, income claim or testimonial. Expertise comes from specifics (real
+  tools, real numbers framed with «تقريباً» or «حوالي», a worked example introduced with «تخيل»), and trust comes from
+  saying the hard part out loud.
+
+**Humanize (on by default).** About 30% of the longest pauses stay as breaths (0.3–0.7 s), and the rest close to
+0.07–0.2 s at varied lengths, the way an editor cuts. Timings shift to match. The voice also gets warm and present EQ, a
+de-esser, gentle compression, early room reflections and a faint room tone. `--pitch` (semitones, default 0) is only
+for a synthetic voice that sits too high. `--raw` skips all processing. To process a take again without paying:
+`--from take.raw.mp3 --timings take.raw.timestamps.json`.
 
 Speech starts within 0.15 s. There's no intro, no music sting, and no "hi guys".
 
@@ -140,6 +141,8 @@ keep the words that carry meaning, spelled the way they're spoken.
   - `m` 66 for normal lines.
   - `l` 96 for a line standing alone.
   - `xl` 140 or `xxl` 190 for the hero word, in the `display` font.
+- Words lay out right to left one at a time, so an Arabic prefix on an English word («الـ dispatcher») or several English
+  words in a row come out reversed. Join them with a non-breaking space (`الـ\u00a0dispatcher`) to keep them together.
 - A small setup word sits above a huge hero word («لان» then «جيل زد»). This is the signature layout; use it 2–3 times
   per video.
 - Words land about 0.1 s before they're spoken, and a line fills in at most 0.13 s a word (`cadence: "eager"`), so the eye
@@ -212,8 +215,6 @@ Measured from the creator's critique videos:
 - Set `"theme": "paper"` and put the person's logo in `brand`. Use `rules: true` on the tip scenes, not on the opening
   hook.
 - Open by showing the subject large with «هذا الشعار يحتاج تصحيح!», then «3 أخطاء» with a `countdown`.
-- Words lay out right to left one by one, so several English words in a row come out reversed: join them with a
-  non-breaking space (`Coffee\u00a0first`) to keep them in order.
 - Give each fault its own scene: a `heading` (`n`: 1, 2, 3), the subject, then one `annotate` drawn as the voice names the
   fault, using `target` on the subject's card `id`.
 - The turn is an `iris` into `night` with a `sparkle`. The fix builds element by element (a 2×2 grid of line icons

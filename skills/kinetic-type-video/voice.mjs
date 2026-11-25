@@ -2,7 +2,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
-const HOUSE_VOICE = "mUrAdOukT8TtEOpp0uKv";
+const HOUSE_VOICE = "4uJbyDJGijiDphW2T3vP";
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -22,7 +22,7 @@ function run(cmd, argv) {
 
 async function generate() {
   if (!scriptPath) {
-    console.error("usage: node voice.mjs script.txt [--out vo] [--voice id] [--stability 0|0.5|1] [--speed 1.0] [--pitch -1.4] [--raw]\n       node voice.mjs --from take.raw.mp3 --timings take.raw.timestamps.json [--out vo]");
+    console.error("usage: node voice.mjs script.txt [--out vo] [--voice id] [--stability 0|0.5|1] [--speed 1.0] [--pitch 0] [--raw]\n       node voice.mjs --from take.raw.mp3 --timings take.raw.timestamps.json [--out vo]");
     process.exit(1);
   }
   const text = readFileSync(scriptPath, "utf8").trim();
@@ -36,8 +36,8 @@ async function generate() {
       model_id: model,
       language_code: flag("lang", "ar"),
       voice_settings: {
-        stability: Number(flag("stability", model === "eleven_v3" ? "0" : "0.35")),
-        similarity_boost: 0.8,
+        stability: Number(flag("stability", "0.5")),
+        similarity_boost: Number(flag("similarity", "0.75")),
         style: Number(flag("style", "0.35")),
         use_speaker_boost: true,
         speed: Number(flag("speed", "1.0")),
@@ -123,7 +123,7 @@ function shapePauses(file) {
 }
 
 function humanize(rawAudio, rawTimings) {
-  const semitones = Number(flag("pitch", "-1.4"));
+  const semitones = Number(flag("pitch", "0"));
   const { keep, map, cut, pauses, breaths } = shapePauses(rawAudio);
   const fade = 0.008;
   const parts = keep.map(([a, b], i) => {
