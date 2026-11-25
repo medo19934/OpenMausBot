@@ -143,7 +143,7 @@
   };
 
   const revealStyle = (node, t, t0, style = "soft", extra = {}) => {
-    const d = style === "pop" ? 0.42 : style === "fast" ? 0.16 : 0.26;
+    const d = { pop: 0.42, fast: 0.16, slam: 0.24, drop: 0.5, mask: 0.48 }[style] ?? 0.26;
     const k = prog(t, t0, d);
     if (k <= 0) {
       node.style.opacity = "0";
@@ -162,6 +162,20 @@
       const b = ease.back(k);
       tf = `scale(${lerp(0.55, 1, b).toFixed(4)})`;
       blur = (1 - e) * 10;
+    } else if (style === "slam") {
+      const q = ease.outQuint(k);
+      tf = `scale(${lerp(2.4, 1, q).toFixed(4)}) rotate(${((1 - q) * 6 * sign).toFixed(2)}deg)`;
+      blur = (1 - q) * 18;
+    } else if (style === "drop") {
+      const b = ease.back(k);
+      tf = `translateY(${px((b - 1) * 160)}) rotate(${((1 - e) * 4 * sign).toFixed(2)}deg)`;
+      blur = (1 - e) * 8;
+    } else if (style === "mask") {
+      tf = `translateY(${((1 - ease.outQuint(k)) * 112).toFixed(2)}%)`;
+      node.style.opacity = "1";
+      node.style.transform = `${extra.base ?? ""} ${tf}`.trim();
+      node.style.filter = "";
+      return k;
     } else if (style === "none") {
       tf = "";
     } else {
@@ -246,8 +260,8 @@
       });
     });
     const sel = item.select
-      ? { rects: rows.map(() => el("div", "ktv-select", box, { position: "absolute", background: g.select, borderRadius: px(6), pointerEvents: "none", zIndex: "-1" })),
-          caret: el("div", "ktv-caret", box, { position: "absolute", width: px(4), background: g.light ? g.accent : "#FFFFFF", borderRadius: px(2) }) }
+      ? { rects: rows.map(() => el("div", "ktv-select", box, { position: "absolute", background: item.select.color ? palette[item.select.color] ?? item.select.color : g.select, borderRadius: px(item.select.color ? 4 : 6), pointerEvents: "none", zIndex: "-1", transform: item.select.color ? "skewX(-8deg)" : "" })),
+          caret: el("div", "ktv-caret", box, { position: "absolute", width: px(4), background: g.light ? g.accent : "#FFFFFF", borderRadius: px(2), display: item.select.caret === false ? "none" : "" }) }
       : null;
     const strikes = item.strike
       ? rows.map(() => el("div", "ktv-strike", box, { position: "absolute", height: `${Math.max(4, size * 0.075)}px`, borderRadius: px(99), background: item.strike.color ? palette[item.strike.color] ?? item.strike.color : g.light ? g.accent : g.accent === palette.blueAccent ? "#FFFFFF" : g.accent, transformOrigin: dir === "rtl" ? "right center" : "left center", pointerEvents: "none" }))
@@ -278,7 +292,8 @@
     const outT = item.out === undefined ? undefined : timeOf(item.out);
     const grown = new Map();
     data.words.forEach((w) => {
-      const kw = prog(t, w.t, style === "pop" ? 0.32 : 0.22);
+      const kw = prog(t, w.t, style === "pop" || style === "drop" ? 0.32 : style === "slam" ? 0.12 : 0.22);
+      if (style === "mask") w.slot.style.clipPath = "inset(-0.4em -0.3em 0 -0.3em)";
       const k = item.reserve ? 1 : ease.outQuint(kw);
       w.grow.set(k);
       w.slot.style.marginInlineStart = w === data.words[data.rows[w.row].first] ? "0px" : `${(data.gap * k).toFixed(2)}px`;
@@ -319,7 +334,7 @@
       const t0 = timeOf(s.at);
       const k = ease.inOut(prog(t, t0, s.dur ?? 0.45));
       const visible = t >= t0;
-      data.sel.caret.style.display = visible ? "" : "none";
+      data.sel.caret.style.display = visible && s.caret !== false ? "" : "none";
       const boxRect = data.box.getBoundingClientRect();
       const scale = boxRect.width / data.box.offsetWidth || 1;
       let caret = null;
@@ -805,6 +820,7 @@
       const logo = el("img", "ktv-brand", node, { position: "absolute", left: "50%", top: `${(spec.brand.y ?? 0.035) * 100}%`, width: px(spec.brand.w ?? 140), transform: "translateX(-50%)", zIndex: "40" });
       logo.src = g.light || !spec.brand.srcOnDark ? spec.brand.src : spec.brand.srcOnDark;
     }
+    const flash = (sc.enter ?? "") === "flash" ? el("div", "ktv-flash", node, { position: "absolute", inset: "0", background: "#FFFFFF", opacity: "0", pointerEvents: "none", zIndex: "300" }) : null;
     const ring = (sc.enter ?? "") === "iris" ? el("div", "ktv-iris", root, { position: "absolute", borderRadius: "50%", border: `${px(10)} solid ${g.light ? g.accent : "#0048E2"}`, pointerEvents: "none", display: "none", zIndex: "500" }) : null;
     const cam = el("div", "ktv-cam", node, { position: "absolute", inset: "0", transformOrigin: "50% 45%", willChange: "transform, filter" });
     const anchor = sc.layout ?? "center";
@@ -848,7 +864,7 @@
       items.push(entry);
       return entry;
     });
-    return { spec: sc, node, cam, stack, footer, ring, items: scItems, g, mb: motionBlur() };
+    return { spec: sc, node, cam, stack, footer, ring, flash, items: scItems, g, mb: motionBlur() };
   });
 
   function buildCaptions() {
@@ -922,6 +938,7 @@
       const first = it.words?.[0]?.t ?? it.at;
       if (it.kick) push("kick", first, { size: typeof it.kick === "number" ? it.kick : 0.07 });
       if (textual(it) && it.reveal === "pop") push("pop", first);
+      if (textual(it) && (it.reveal === "slam" || it.reveal === "drop")) push(it.reveal, first);
       if (it.strike) push("strike", timeOf(it.strike.at));
       if (it.select) push("select", timeOf(it.select.at));
       if (type === "heading") push("pop", first - 0.05);
@@ -1107,7 +1124,7 @@
     scenes.forEach((sc, i) => {
       const next = scenes[i + 1];
       const nextEnter = next?.spec.enter ?? "cut";
-      const tail = nextEnter.startsWith("push") ? PUSH : nextEnter === "iris" ? 0.5 : 0;
+      const tail = nextEnter.startsWith("push") || nextEnter === "up" ? PUSH : nextEnter === "iris" ? 0.5 : nextEnter === "zoom" ? 0.4 : 0;
       const live = t >= sc.start && t < sc.end + tail;
       sc.node.style.visibility = live ? "" : "hidden";
       if (!live) return;
@@ -1130,7 +1147,38 @@
         x = to * W * 0.35 * ease.inOut(k);
         mbx = Math.sin(Math.PI * k) * 60;
       }
-      sc.node.style.transform = x ? `translateX(${x.toFixed(2)}px)` : "";
+      let y = 0;
+      let mby = 0;
+      let zoom = 1;
+      let fade = 1;
+      let zblur = 0;
+      if (enter === "up" && t < sc.start + PUSH) {
+        const k = prog(t, sc.start, PUSH);
+        y = H * (1 - ease.inOut(k));
+        mby = Math.sin(Math.PI * k) * 80;
+      }
+      if (next && nextEnter === "up" && t >= sc.end) {
+        const k = prog(t, sc.end, PUSH);
+        y = -H * 0.35 * ease.inOut(k);
+        mby = Math.sin(Math.PI * k) * 60;
+      }
+      if (enter === "zoom" && t < sc.start + 0.4) {
+        const k = ease.outQuint(prog(t, sc.start, 0.4));
+        zoom = lerp(1.6, 1, k);
+        fade = clamp(k * 2.2);
+        zblur = (1 - k) * 30;
+      }
+      if (next && nextEnter === "zoom" && t >= sc.end) {
+        const k = ease.in(prog(t, sc.end, 0.4));
+        zoom = lerp(1, 0.7, k);
+        zblur = k * 16;
+      }
+      sc.node.style.transform = x || y || zoom !== 1 ? `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(${zoom.toFixed(4)})` : "";
+      sc.node.style.opacity = String(fade);
+      if (enter === "flash") {
+        const k = prog(t, sc.start, 0.28);
+        sc.flash.style.opacity = k < 1 ? String((1 - ease.out(k)) * 0.95) : "0";
+      }
       if (enter === "iris") {
         const IRIS = 0.5;
         const k = ease.inOut(prog(t, sc.start, IRIS));
@@ -1140,7 +1188,11 @@
         sc.ring.style.display = opening && k > 0 ? "" : "none";
         if (opening) Object.assign(sc.ring.style, { left: `${W / 2 - r}px`, top: `${H * 0.46 - r}px`, width: `${2 * r}px`, height: `${2 * r}px`, opacity: String(1 - k * 0.6) });
       }
-      sc.mb.apply(sc.node, mbx * U, 0, spec.glitch === false ? 0 : mbx * 0.22 * U);
+      if (zblur > 0.3) {
+        sc.node.style.filter = `blur(${(zblur * U).toFixed(2)}px)`;
+      } else {
+        sc.mb.apply(sc.node, mbx * U, mby * U, spec.glitch === false ? 0 : mbx * 0.22 * U);
+      }
       camera(sc, t);
       sc.items.forEach((entry) => drawItem(entry, t));
       if (sc.footer) {

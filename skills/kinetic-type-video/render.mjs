@@ -142,6 +142,8 @@ async function renderSegment(browser, stagePath, f0, f1, file) {
 
 
 const SFX_RULES = {
+  slam: (e) => [{ name: "impact", at: e.at, gain: -13 }],
+  drop: (e) => [{ name: "pop", at: e.at + 0.12, gain: -16 }],
   kick: (e) => [{ name: e.size >= 0.1 ? "boom" : "impact", at: e.at - 0.02, gain: e.size >= 0.1 ? -13 : -12 }],
   pop: (e) => [{ name: "pop", at: e.at, gain: -15 }],
   pill: (e) => [{ name: "pop", at: e.at, gain: -16 }],
@@ -172,6 +174,9 @@ function sfxFiles(info, tmp) {
     if (c.enter === "push-right") list.push({ name: "whoosh", at: c.start - 0.12, gain: -12 });
     if (c.enter === "push-left") list.push({ name: "whoosh-left", at: c.start - 0.12, gain: -12 });
     if (c.enter === "iris") list.push({ name: "whoosh-soft", at: c.start - 0.08, gain: -13 });
+    if (c.enter === "up") list.push({ name: "whoosh", at: c.start - 0.12, gain: -12 });
+    if (c.enter === "zoom") list.push({ name: "whoosh-soft", at: c.start - 0.15, gain: -12 }, { name: "impact", at: c.start + 0.05, gain: -17 });
+    if (c.enter === "flash") list.push({ name: "glitch", at: c.start, gain: -16 }, { name: "impact", at: c.start, gain: -15 });
     if (c.exit === "blur") list.push({ name: "whoosh-soft", at: c.end - 0.45, gain: -17 });
     if (c.exit === "zoom") list.push({ name: "riser", at: c.end - 0.9, gain: -15 }, { name: "impact", at: c.end, gain: -13 });
   });

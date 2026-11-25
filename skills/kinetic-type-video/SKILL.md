@@ -177,7 +177,7 @@ Text items get their times from `align.mjs`. Time everything else from cues, so 
 
 | `type` | Fields | Use |
 |---|---|---|
-| `text` (default) | `text` (with `\n` and `*accent*`), `size`, `font: "display"`, `reveal: "soft"\|"pop"`, `select: {from,to,at}`, `strike: {at}`, `kick`, `out`, `leading` | Every line. `strike` sweeps a line through it and dims it ("no, not X"). `kick` (true or a size such as 0.1) punches the camera in as it lands: use it on hero words, at most once a scene |
+| `text` (default) | `text` (with `\n` and `*accent*`), `size`, `font: "display"`, `reveal: "soft"\|"pop"\|"mask"\|"slam"\|"drop"`, `select: {from,to,at}`, `strike: {at}`, `kick`, `out`, `leading` | Every line. `strike` sweeps a line through it and dims it ("no, not X"). `kick` (true or a size such as 0.1) punches the camera in as it lands: use it on hero words, at most once a scene |
 | `pill` | `text` | A label above a hero line («وهنا نقول») |
 | `badge` | `icon`: eye-off, eye, alert, heart, check, star, play | A small cue above a line, with a ring pulse |
 | `checklist` | `items: [{text}]`, `size` | Spoken lists, with a tick per row as it's said |
@@ -195,7 +195,7 @@ Text items get their times from `align.mjs`. Time everything else from cues, so 
 
 `pill` also takes `"style": "banner"`, a square-cornered title bar, for a footage title such as «تحديث اليستريتور 2026».
 
-Scene fields: `bg`, `enter` (`cut`, `push-right`, `push-left`, `iris`), `exit` (`blur`, `zoom`), `layout:
+Scene fields: `bg`, `enter` (`cut`, `push-right`, `push-left`, `up`, `zoom`, `iris`, `flash`), `exit` (`blur`, `zoom`), `layout:
 "center"|"upper"` (upper puts a word above mockups), `top`, `centerY`, `gap`, `drift`, `rules` (ruled paper lines),
 `brand: false` (hide the logo), `captions: false` (hide captions over this scene), and `start`/`end` (cues; you rarely
 need them).
@@ -320,6 +320,22 @@ On by default, so every video has finished-edit polish without asking:
 - **Light sweep:** a gloss passes across every card and mockup just after it lands. `"shine": false` on a cards item.
 - **Glow:** accent words and counters glow softly on dark grounds. `"glow": false` turns it off.
 - **Motion blur:** on pushes, pops, counters and scrolls, from their speed.
+
+**Reveals** (`reveal` on a text item), each with a purpose:
+
+- `soft` (default): a blur-in rise for ordinary lines.
+- `mask`: words rise from behind an invisible line, the classic title reveal. Use it for setup lines and questions.
+- `pop`: overshoots with a tilt. For a hero word that lands with energy.
+- `slam`: crashes in from 2.4× with blur and an impact sound. For the one word a scene exists for («ميزانيتك»، «دورك»،
+  «مهتم»); pair it with `kick`.
+- `drop`: falls and bounces. For list items and playful lines («بدون فلسفة»).
+
+**Transitions** (`enter` on a scene): `push-right` and `push-left` are the workhorses. `up` is a vertical whip, for a turn
+toward the viewer («هنا يجي دورك»). `zoom` flies the next scene in from behind the camera; pair it with `exit: "zoom"` on
+the scene before for the big reveal. `iris` is a circle-wipe for a change of world (dark to the lifestyle beat).
+`flash` is a white flash-cut for a hard contrast («بس…»، a call starting). Vary them: no transition three times in a row.
+
+**Highlighter:** `select` with `"color": "#F7FF5966"` and `"caret": false` is a marker swipe behind the key word.
 
 Props that read as motion design:
 
