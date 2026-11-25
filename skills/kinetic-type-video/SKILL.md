@@ -97,7 +97,9 @@ timing) and, for API takes, `vo.timestamps.json`.
 
 **Humanize (on by default).** About 30% of the longest pauses stay as breaths (0.3–0.7 s), and the rest close to
 0.07–0.2 s at varied lengths, the way an editor cuts. Timings shift to match. The voice also gets warm and present EQ, a
-de-esser, gentle compression, early room reflections and a faint room tone. `--pitch` (semitones, default 0) is only
+de-esser and gentle compression, and stays clean: nothing is added to the pauses. `--room` adds early room reflections
+and a faint room tone; use it only for a synthetic voice that sounds too dry, never on a real recording, where it is
+heard as hiss. `--pitch` (semitones, default 0) is only
 for a synthetic voice that sits too high. `--raw` skips all processing. To process a take again without paying:
 `--from take.raw.mp3 --timings take.raw.timestamps.json`.
 

@@ -10,7 +10,7 @@ const flag = (name, fallback) => {
   return i === -1 ? fallback : args[i + 1];
 };
 const has = (name) => args.includes(`--${name}`);
-const BOOLEAN = new Set(["--raw", "--no-stt"]);
+const BOOLEAN = new Set(["--raw", "--no-stt", "--room"]);
 const scriptPath = args.find((a, i) => !a.startsWith("--") && !(i > 0 && args[i - 1].startsWith("--") && !BOOLEAN.has(args[i - 1])));
 const out = flag("out", "vo");
 
@@ -137,13 +137,15 @@ function humanize(rawAudio, rawTimings) {
     "equalizer=f=3200:t=q:w=1.4:g=1.2",
     "deesser=i=0.35",
     "acompressor=threshold=-19dB:ratio=2.6:attack=9:release=160:makeup=2",
-    "aecho=0.88:0.55:13|23|37:0.11|0.07|0.04",
+    has("room") ? "aecho=0.88:0.55:13|23|37:0.11|0.07|0.04" : null,
   ].filter(Boolean).join(",");
   const graph = [
     ...parts,
     `${keep.map((_, i) => `[k${i}]`).join("")}concat=n=${keep.length}:v=0:a=1,aformat=sample_rates=44100:channel_layouts=mono,${chain}[v]`,
-    "anoisesrc=color=brown:amplitude=0.0035:seed=11,lowpass=f=900,highpass=f=60,aformat=sample_rates=44100:channel_layouts=mono[room]",
-    "[v][room]amix=inputs=2:duration=first:normalize=0:weights=1 1,pan=stereo|c0=c0|c1=c0[out]",
+    ...(has("room")
+      ? ["anoisesrc=color=brown:amplitude=0.0035:seed=11,lowpass=f=900,highpass=f=60,aformat=sample_rates=44100:channel_layouts=mono[room]",
+        "[v][room]amix=inputs=2:duration=first:normalize=0:weights=1 1,pan=stereo|c0=c0|c1=c0[out]"]
+      : ["[v]pan=stereo|c0=c0|c1=c0[out]"]),
   ].join(";");
   run("ffmpeg", ["-v", "error", "-y", "-i", rawAudio, "-filter_complex", graph, "-map", "[out]", "-c:a", "libmp3lame", "-b:a", "192k", `${out}.mp3`]);
   if (!rawTimings) {
@@ -157,7 +159,7 @@ function humanize(rawAudio, rawTimings) {
     character_end_times_seconds: al.character_end_times_seconds.map((t) => +map(t).toFixed(3)),
   };
   writeFileSync(`${out}.timestamps.json`, JSON.stringify({ alignment: shifted }));
-  console.log(`humanized: ${pauses} pauses → ${breaths} kept as breaths, ${cut.toFixed(1)}s of dead air removed, pitch ${semitones} st, room and tone added`);
+  console.log(`humanized: ${pauses} pauses → ${breaths} kept as breaths, ${cut.toFixed(1)}s of dead air removed, pitch ${semitones} st${has("room") ? ", room and tone added" : ", clean"}`);
 }
 
 async function transcribe(file) {
