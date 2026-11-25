@@ -90,18 +90,18 @@ function aligner(file) {
     let bestScore = 0;
     for (let j = cursor; j < words.length; j++) {
       if (!similar(words[j].key, keys[0])) continue;
-      let score = 1;
+      let score = words[j].key === keys[0] ? 1.5 : 1;
       let k = j + 1;
       for (const key of keys.slice(1, 4)) {
         const hit = words.slice(k, k + 3).findIndex((w) => similar(w.key, key));
         if (hit === -1) continue;
-        score++;
+        score += hit === 0 ? 1.2 : 1;
         k += hit + 1;
       }
       if (score > bestScore) {
         best = j;
         bestScore = score;
-        if (score === Math.min(4, keys.length)) break;
+        if (score >= Math.min(4, keys.length) * 1.4) break;
       }
     }
     return keys.length === 1 || bestScore >= 2 ? best : -1;
@@ -115,7 +115,8 @@ function aligner(file) {
     },
     end: words.length ? words[words.length - 1].end : 0,
     times(keys) {
-      if (keys.length && near(keys[0]) === -1) {
+      const confirmed = (j) => j !== -1 && (keys.length < 2 || words.slice(j + 1, j + 2).some((w) => similar(w.key, keys[1])));
+      if (keys.length && !confirmed(near(keys[0]))) {
         for (let i = 0; i < keys.length; i++) {
           const j = phrase(keys.slice(i));
           if (j !== -1) {

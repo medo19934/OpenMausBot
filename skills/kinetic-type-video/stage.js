@@ -202,7 +202,7 @@
 
   const parseWords = (text) =>
     text.split("\n").map((line) =>
-      line.trim().split(/\s+/).filter(Boolean).map((raw) => {
+      line.trim().split(/[ \t\r]+/).filter(Boolean).map((raw) => {
         const accent = /\*[^*]+\*/.test(raw);
         return { text: raw.replace(/\*/g, ""), accent };
       }),
@@ -233,6 +233,10 @@
         const slot = el("span", "ktv-slot", row, { display: "inline-block", overflow: "visible", position: "relative" });
         const inner = el("span", "ktv-word", slot, { display: "inline-block", position: "relative", willChange: "transform, filter, opacity" });
         inner.textContent = w.text;
+        if (!/[\u0600-\u06FF]/.test(w.text)) {
+          inner.style.direction = "ltr";
+          inner.style.unicodeBidi = "isolate";
+        }
         if (w.accent) {
           const accent = item.accentColor ? palette[item.accentColor] ?? item.accentColor : g.accent;
           inner.style.color = accent;
