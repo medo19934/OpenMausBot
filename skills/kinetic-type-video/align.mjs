@@ -181,6 +181,10 @@ for (const scene of spec.scenes ?? []) {
   });
   for (const item of scene.items ?? []) {
     startItem();
+    if (item.say && typeof item.at !== "string") {
+      item.at = +(resolve(item.say)[0] + (item.sayOffset ?? 0)).toFixed(3);
+      continue;
+    }
     if (item.type === "checklist") {
       for (const row of item.items) {
         if (row.at !== undefined) continue;

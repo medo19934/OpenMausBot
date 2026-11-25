@@ -21,7 +21,7 @@ describe("kinetic-type-video skill", () => {
   });
 
   it("ships every file the guide tells the agent to run", () => {
-    for (const file of ["voice.mjs", "align.mjs", "render.mjs", "mockup.mjs", "mockups-example.html", "browser.mjs", "example-paper.json", "stage.js", "example.json", "package.json"]) {
+    for (const file of ["voice.mjs", "align.mjs", "render.mjs", "mockup.mjs", "mockups-example.html", "browser.mjs", "sfx.mjs", "example-paper.json", "stage.js", "example.json", "package.json"]) {
       expect(guide, file).toContain(file);
       expect(existsSync(join(SKILL_DIR, file)), file).toBe(true);
     }

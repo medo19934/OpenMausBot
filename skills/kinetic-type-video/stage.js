@@ -117,17 +117,26 @@
     f.setAttribute("width", "140%");
     f.setAttribute("height", "140%");
     f.setAttribute("color-interpolation-filters", "sRGB");
-    const g = document.createElementNS(svgNS, "feGaussianBlur");
-    g.setAttribute("stdDeviation", "0 0");
-    f.appendChild(g);
+    f.innerHTML = `<feGaussianBlur in="SourceGraphic" stdDeviation="0 0" result="b"/>
+      <feColorMatrix in="b" type="matrix" values="1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0" result="r"/>
+      <feOffset in="r" dx="0" result="ro"/>
+      <feColorMatrix in="b" type="matrix" values="0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 0" result="g"/>
+      <feColorMatrix in="b" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 1 0" result="bl"/>
+      <feOffset in="bl" dx="0" result="bo"/>
+      <feComposite in="ro" in2="g" operator="arithmetic" k2="1" k3="1" result="rg"/>
+      <feComposite in="rg" in2="bo" operator="arithmetic" k2="1" k3="1"/>`;
     defs.appendChild(f);
+    const blur = f.querySelector("feGaussianBlur");
+    const [red, blue] = f.querySelectorAll("feOffset");
     return {
-      apply(node, sx, sy) {
-        if (sx < 0.3 && sy < 0.3) {
+      apply(node, sx, sy, split = 0) {
+        if (sx < 0.3 && sy < 0.3 && split < 0.3) {
           node.style.filter = "";
           return;
         }
-        g.setAttribute("stdDeviation", `${sx.toFixed(2)} ${sy.toFixed(2)}`);
+        blur.setAttribute("stdDeviation", `${sx.toFixed(2)} ${sy.toFixed(2)}`);
+        red.setAttribute("dx", split.toFixed(2));
+        blue.setAttribute("dx", (-split).toFixed(2));
         node.style.filter = `url(#${id})`;
       },
     };
@@ -224,7 +233,11 @@
         const slot = el("span", "ktv-slot", row, { display: "inline-block", overflow: "visible", position: "relative" });
         const inner = el("span", "ktv-word", slot, { display: "inline-block", position: "relative", willChange: "transform, filter, opacity" });
         inner.textContent = w.text;
-        if (w.accent) inner.style.color = item.accentColor ? palette[item.accentColor] ?? item.accentColor : g.accent;
+        if (w.accent) {
+          const accent = item.accentColor ? palette[item.accentColor] ?? item.accentColor : g.accent;
+          inner.style.color = accent;
+          if (!g.light && spec.glow !== false && /^#[0-9a-f]{6}$/i.test(accent)) inner.style.textShadow = `0 0 ${(size * 0.32).toFixed(1)}px ${accent}66, 0 0 ${(size * 0.08).toFixed(1)}px ${accent}55`;
+        }
         words.push({ ...w, slot, inner, index: n++, row: rows.length - 1, grow: new Grow(slot, "x") });
       });
     });
@@ -384,7 +397,16 @@
       });
       const im = el("img", "", card, { width: "100%", height: "100%", objectFit: bare ? "contain" : "cover", display: "block" });
       im.src = img.src;
-      return { img, card, i, bare };
+      const shine = el("div", "ktv-shine", card, {
+        position: "absolute", inset: "0", pointerEvents: "none", opacity: "0",
+        background: "linear-gradient(105deg, transparent 38%, rgba(255,255,255,.65) 50%, transparent 62%)", backgroundSize: "260% 100%",
+        mixBlendMode: "soft-light",
+      });
+      if (bare) {
+        shine.style.webkitMaskImage = `url("${img.src}")`;
+        shine.style.webkitMaskSize = "100% 100%";
+      }
+      return { img, card, i, bare, shine };
     });
     return { stage, cards, layout, mb: motionBlur() };
   }
@@ -397,7 +419,7 @@
       focus = keys[0].index;
       for (let i = 1; i < keys.length; i++) focus = lerp(focus, keys[i].index, ease.inOut(prog(t, keys[i].at, 0.5)));
     }
-    data.cards.forEach(({ img, card, i, bare }) => {
+    data.cards.forEach(({ img, card, i, bare, shine }) => {
       const t0 = img.at !== undefined ? timeOf(img.at) : item.at + i * (item.stagger ?? 0.12);
       const k = prog(t, t0, 0.55);
       if (k <= 0) {
@@ -449,6 +471,11 @@
       if (gray > 0.01) f.push(`grayscale(${gray.toFixed(3)})`);
       if (blur + enterBlur > 0.2) f.push(`blur(${((blur + enterBlur) * U).toFixed(2)}px)`);
       card.style.filter = f.join(" ");
+      const sweep = prog(t, t0 + 0.35, 0.75);
+      const shining = sweep > 0 && sweep < 1 && item.shine !== false;
+      shine.style.display = shining ? "" : "none";
+      shine.style.opacity = shining ? "1" : "0";
+      shine.style.backgroundPosition = `${(1 - ease.inOut(sweep)) * 100}% 0`;
     });
   }
 
@@ -737,6 +764,30 @@
     data.node.style.transform = `scale(${lerp(1.35, 1, ease.out(local)).toFixed(3)})`;
   }
 
+  function buildCounter(item, host, g) {
+    const wrap = el("div", "", host, { display: "flex", justifyContent: "center" });
+    const size = (SIZES[item.size] ?? item.size ?? SIZES.xxl) * U;
+    const node = el("div", "", wrap, {
+      fontFamily: `"${item.font === "text" ? FONTS.text : FONTS.display}"`, fontWeight: "800", fontSize: `${size}px`, lineHeight: "1.05",
+      color: item.accent === false ? g.fg : g.accent, fontVariantNumeric: "tabular-nums", direction: "ltr", whiteSpace: "nowrap",
+      textShadow: !g.light && spec.glow !== false && /^#[0-9a-f]{6}$/i.test(g.accent) ? `0 0 ${(size * 0.3).toFixed(1)}px ${g.accent}66` : "none",
+    });
+    const fmt = (v) => `${item.prefix ?? ""}${v.toLocaleString("en-US", { minimumFractionDigits: item.decimals ?? 0, maximumFractionDigits: item.decimals ?? 0 })}${item.suffix ?? ""}`;
+    node.textContent = fmt(item.to);
+    return { node, fmt, grow: new Grow(wrap, "y") };
+  }
+
+  function drawCounter(item, data, t) {
+    const dur = item.dur ?? 0.9;
+    const k = prog(t, item.at, dur);
+    const e = ease.outQuint(k);
+    const v = lerp(item.from ?? 0, item.to, e);
+    const step = Math.pow(10, -(item.decimals ?? 0));
+    data.node.textContent = data.fmt(Math.round(v / step) * step);
+    const speed = k > 0 && k < 1 ? (1 - e) : 0;
+    data.node.style.filter = speed > 0.02 ? `blur(${(speed * 5 * U).toFixed(2)}px)` : "";
+  }
+
   const scenes = (spec.scenes ?? []).map((sc, si) => {
     const g = grounds[sc.bg ?? defaultGround];
     if (!g) throw new Error(`Unknown ground ${sc.bg}`);
@@ -786,7 +837,7 @@
       const b = {
         text: buildText, pill: buildPill, badge: buildBadge, checklist: buildChecklist, cards: buildCards,
         phone: buildPhone, meter: buildMeter, cta: buildCta, image: buildImage, gap: buildGap,
-        heading: buildHeading, annotate: buildAnnotate, sparkle: buildSparkle, countdown: buildCountdown,
+        heading: buildHeading, annotate: buildAnnotate, sparkle: buildSparkle, countdown: buildCountdown, counter: buildCounter,
       }[it.type ?? "text"];
       if (!b) throw new Error(`Unknown item type ${it.type}`);
       entry.data = b(it, wrap, g);
@@ -858,6 +909,37 @@
     });
   }
 
+  function collectEvents() {
+    const ev = [];
+    const push = (type, at, extra = {}) => Number.isFinite(at) && ev.push({ type, at, ...extra });
+    for (const entry of items) {
+      const it = entry.spec;
+      const type = it.type ?? "text";
+      const first = it.words?.[0]?.t ?? it.at;
+      if (it.kick) push("kick", first, { size: typeof it.kick === "number" ? it.kick : 0.07 });
+      if (textual(it) && it.reveal === "pop") push("pop", first);
+      if (it.strike) push("strike", timeOf(it.strike.at));
+      if (it.select) push("select", timeOf(it.select.at));
+      if (type === "heading") push("pop", first - 0.05);
+      if (type === "pill" || type === "badge" || type === "sparkle" || type === "counter") push(type, it.at, type === "counter" ? { dur: it.dur ?? 0.9 } : {});
+      if (type === "countdown") for (let i = 0; i < (it.from ?? 3); i++) push("tick", it.at + i * (it.step ?? 0.8));
+      if (type === "checklist") it.items.forEach((row, i) => push("tick", (row.at !== undefined ? timeOf(row.at) : it.at + i * 0.6) + 0.14));
+      if (type === "cards") it.images.forEach((img, i) => push("card", img.at !== undefined ? timeOf(img.at) : it.at + i * (it.stagger ?? 0.12)));
+      if (type === "annotate") push("annotate", it.at, { shape: it.shape ?? "ellipse", dur: it.dur });
+      if (type === "phone") (it.scroll ?? []).forEach((sc) => push("scroll", timeOf(sc.at)));
+      if (type === "cta") {
+        push("pop", it.at);
+        push("click", ctaClick(it));
+      }
+      const custom = it.sfx === undefined ? [] : Array.isArray(it.sfx) ? it.sfx : [it.sfx];
+      custom.forEach((c) => {
+        const cue = typeof c === "string" ? { name: c } : c;
+        push("custom", cue.at !== undefined ? timeOf(cue.at) : first + (cue.offset ?? 0), { name: cue.name, gain: cue.gain });
+      });
+    }
+    return ev.sort((a, b) => a.at - b.at);
+  }
+
   const textual = (it) => ["text", "heading"].includes(it.type ?? "text");
 
   function resolveTimes() {
@@ -904,7 +986,7 @@
     if (spec.captions) captions = buildCaptions();
     window.KTV.duration = total;
     window.KTV.cues = scenes.map((sc) => ({ start: sc.start, end: sc.end, enter: sc.spec.enter ?? "cut", exit: sc.spec.exit ?? "none" }));
-    window.KTV.events = items.filter((e) => ["pill", "badge", "cta", "sparkle", "annotate"].includes(e.spec.type)).map((e) => ({ type: e.spec.type, at: e.spec.at, click: e.spec.type === "cta" ? ctaClick(e.spec) : undefined }));
+    window.KTV.events = collectEvents();
   }
 
   const PUSH = spec.pushDuration ?? 0.24;
@@ -956,8 +1038,9 @@
     }
     const node = data.node;
     if (exitStyle(node, t, outT, it.at)) return;
-    revealStyle(node, t, it.at, type === "pill" || type === "badge" || type === "countdown" ? "scale" : type === "sparkle" ? "pop" : it.reveal ?? "soft");
+    revealStyle(node, t, it.at, type === "pill" || type === "badge" || type === "countdown" ? "scale" : type === "sparkle" || type === "counter" ? "pop" : it.reveal ?? "soft");
     if (type === "countdown") drawCountdown(it, data, t);
+    if (type === "counter") drawCounter(it, data, t);
     if (type === "sparkle") {
       const spin = (t - it.at) * 40 + 45 * (1 - ease.out(prog(t, it.at, 0.6)));
       const pulse = 1 + Math.sin((t - it.at) * 3) * 0.04;
@@ -983,12 +1066,21 @@
     let scale = 1 + drift * life;
     let blur = 0;
     let ty = 0;
+    let shakeX = 0;
+    let shakeY = 0;
     for (const entry of sc.items) {
       if (!entry.spec.kick) continue;
       const t0 = entry.spec.words?.[0]?.t ?? entry.spec.at;
       if (t < t0) continue;
       const k = prog(t, t0, 0.5);
-      scale *= 1 + (typeof entry.spec.kick === "number" ? entry.spec.kick : 0.07) * (1 - ease.out(k)) * Math.min(1, k * 12);
+      const size = typeof entry.spec.kick === "number" ? entry.spec.kick : 0.07;
+      scale *= 1 + size * (1 - ease.out(k)) * Math.min(1, k * 12);
+      if (spec.shake !== false) {
+        const sk = 1 - prog(t, t0, 0.28);
+        const frame = Math.floor(t * (spec.fps ?? 30));
+        shakeX += (hash(frame * 1.7) - 0.5) * 2 * 14 * U * size * 10 * sk * sk;
+        shakeY += (hash(frame * 2.3 + 9) - 0.5) * 2 * 10 * U * size * 10 * sk * sk;
+      }
     }
     const exit = s.exit ?? "none";
     if (exit === "zoom") {
@@ -1003,7 +1095,7 @@
     } else {
       sc.cam.style.opacity = "1";
     }
-    sc.cam.style.transform = `translateY(${ty.toFixed(2)}px) scale(${scale.toFixed(5)})`;
+    sc.cam.style.transform = `translate(${shakeX.toFixed(2)}px, ${(ty + shakeY).toFixed(2)}px) scale(${scale.toFixed(5)})`;
     sc.cam.style.filter = blur > 0.2 ? `blur(${(blur * U).toFixed(2)}px)` : "";
   }
 
@@ -1044,7 +1136,7 @@
         sc.ring.style.display = opening && k > 0 ? "" : "none";
         if (opening) Object.assign(sc.ring.style, { left: `${W / 2 - r}px`, top: `${H * 0.46 - r}px`, width: `${2 * r}px`, height: `${2 * r}px`, opacity: String(1 - k * 0.6) });
       }
-      sc.mb.apply(sc.node, mbx * U, 0);
+      sc.mb.apply(sc.node, mbx * U, 0, spec.glitch === false ? 0 : mbx * 0.22 * U);
       camera(sc, t);
       sc.items.forEach((entry) => drawItem(entry, t));
       if (sc.footer) {

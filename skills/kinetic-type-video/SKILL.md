@@ -36,6 +36,7 @@ as the skill's base directory when the skill loads.
 | `mockup.mjs` | An HTML file of `data-mockup` elements → one transparent 2× PNG each, in the video's fonts and colours. |
 | `mockups-example.html` | Finished mockups to copy from: clocks, laptop, notification, empty truck, load board, route map, rate confirmation, commission sum and comment box. |
 | `browser.mjs` | The fonts and Chromium setup shared by the two renderers. |
+| `sfx.mjs` | Synthesizes the 18 built-in sound effects at render time. They are original sounds, royalty-free and safe to post. |
 | `example-paper.json` | The paper format with every new prop, renderable without images or audio. |
 | `stage.js` | The animation engine. Every motion is a function of time, so a frame always renders the same. |
 | `example.json` | A complete spec using every prop. Copy it to start. |
@@ -190,6 +191,7 @@ Text items get their times from `align.mjs`. Time everything else from cues, so 
 | `annotate` | `shape`: ellipse, box, underline, bracket, cross, check, arrow; `target: "#id"`, `area: [x0,y0,x1,y1]`, `side`, `pad`, `x`, `y`, `color`, `out` | A hand-drawn mark that draws itself onto another item and follows it. A red `cross` for "wrong", a blue `ellipse` on the exact fault (`area` is fractions of the target), a `bracket` under the thing being judged, a yellow `arrow` (`side`) for "tap here" |
 | `sparkle` | `size`, `color` | The 8-point star before a turn («نفكر بطريقة مختلفة») |
 | `countdown` | `from`, `step` | 3-2-1 in a ring, for "pause the video and find them" |
+| `counter` | `from`, `to`, `dur`, `prefix`, `suffix`, `decimals`, `size` | A number rolling to its value |
 
 `pill` also takes `"style": "banner"`, a square-cornered title bar, for a footage title such as «تحديث اليستريتور 2026».
 
@@ -199,8 +201,9 @@ Scene fields: `bg`, `enter` (`cut`, `push-right`, `push-left`, `iris`), `exit` (
 need them).
 
 Spec fields: `theme`, `brand: {src, srcOnDark, w, y}` (the person's own logo, small and top-centre on every scene),
-`audio: {voice, music, musicGain, sfx: [{src,at,gain}], autoSfx, lufs}`, `footage`, `captions`, `footer: {text,
-scenes: [0,1]}`, `lead`, `cadence`, `fonts`, `palette`, `duration`.
+`audio: {voice, music, musicGain, sfx: [{src,at,gain}], sfxLevel, sfxGain, lufs}`, `footage`, `captions`, `footer:
+{text, scenes: [0,1]}`, `grain`, `shake`, `glitch`, `glow`, `lead`, `cadence`, `fonts`, `palette`, `duration`. Any item
+also takes `say`, `sayOffset` and `sfx`.
 
 ## The paper format
 
@@ -270,11 +273,65 @@ for them.
   "images": [ { "src": "img/board.png", "rot": -2 } ] }
 ```
 
-## Sound
+## Sound design
 
-The voice carries the video. If there's music, it sits at −24 dB and ducks under the voice; with none, leave silence
-rather than add generic music. Automatic effects are a soft whoosh on pushes and zooms, a tick on pills and badges and a
-click on the button. Turn them off with `"autoSfx": false`. The mix is normalised to −14 LUFS with peaks at −1.5 dBTP.
+Every animation gets its sound automatically, placed on the frame it happens and ducked under the voice:
+
+| What happens | Sound |
+|---|---|
+| `push-right` / `push-left` | `whoosh` / `whoosh-left` (panned with the move) |
+| `iris`, `exit: "blur"`, a phone `scroll` | `whoosh-soft` |
+| `exit: "zoom"` | `riser` into `impact` |
+| `kick` (camera punch-in) | `impact`; `boom` when the kick is 0.1 or more |
+| `reveal: "pop"`, pill, badge, heading number, `cta` appearing | `pop` |
+| checklist row, countdown step | `tick` |
+| card or mockup entering | `card` |
+| `strike`, `annotate` cross | `strike` |
+| `annotate` ellipse, box, bracket | `scribble`; underline gets `pen`; arrow gets `pop` |
+| `select` highlight, `cta` click | `click` |
+| `counter` rolling | a run of `tick`s slowing down |
+| `sparkle` | `sparkle` |
+
+Add moments the engine can't guess with `sfx` on any item: a name, or `{name, offset, at, gain}`, or a list of them.
+The other built-ins are `cash` (money: a price, a fee), `ding` (sent, notified, done), `typing` (someone at a keyboard),
+`riser` (builds into a reveal: put it on the reveal with `offset: -0.85`), `boom` and `glitch`. A path to the person's
+own sound file works too.
+
+```json
+{ "type": "counter", "from": 1800, "to": 2100, "say": "2100", "kick": 0.12, "sfx": { "name": "cash", "offset": 1.0 } }
+```
+
+- `audio.sfxLevel`: `"full"` (default), `"subtle"` (5 dB quieter, no ticks or card sounds) or `"off"`. `audio.sfxGain`
+  shifts every effect by that many dB.
+- Don't stack: one signature sound per beat. The engine already drops repeats closer than 0.07 s.
+- Music is optional. If there is music it sits at −24 dB and ducks under the voice; with none, leave silence rather than
+  add generic music. For Instagram, adding a licensed track in the app when posting is the safe way to use popular
+  music.
+- The mix is normalised to −14 LUFS with peaks at −1.5 dBTP.
+
+## Motion effects
+
+On by default, so every video has finished-edit polish without asking:
+
+- **Film grain:** a fine moving texture over flat colour, so it never looks like a slideshow. Set it with `"grain"`
+  (default 0.06, 0 = off; off by default over footage).
+- **Camera shake:** a short decaying shake with every `kick`. `"shake": false` turns it off.
+- **RGB-split glitch:** red and blue fringes during pushes, scaled to the speed. `"glitch": false` turns it off.
+- **Light sweep:** a gloss passes across every card and mockup just after it lands. `"shine": false` on a cards item.
+- **Glow:** accent words and counters glow softly on dark grounds. `"glow": false` turns it off.
+- **Motion blur:** on pushes, pops, counters and scrolls, from their speed.
+
+Props that read as motion design:
+
+- **`counter`**: a number rolling to its value with motion blur. Fields: `from`, `to`, `dur`, `prefix`, `suffix`,
+  `decimals`, `size`, `kick`, `sfx`. Use it for every number that matters (a price, a fee, a total, a count), and strike
+  the old value on a line above it.
+- **Strike, then counter:** «1,800 دولار» struck through as «2,100» rolls up underneath. This is the strongest "it went
+  up" beat.
+- **`riser` into a `pop` hero with `kick: 0.12`** is the reveal («dispatcher»، «السر»). Use it once or twice a video.
+
+Time any prop by what's said with `"say": "phrase"` (plus `"sayOffset"`) instead of a cue. `align.mjs` finds the phrase
+in the voice.
 
 ## Checklist before you call it done
 
@@ -287,4 +344,5 @@ click on the button. Turn them off with `"autoSfx": false`. The mix is normalise
 - [ ] Every `annotate` sits on its target in the stills, not beside it.
 - [ ] In footage videos, captions never cover the thing being clicked; move them with `y` if they do.
 - [ ] Say which voice source you used, and offer the better one if it wasn't the person's own recording.
+- [ ] Every number that matters rolls as a `counter`, and every money moment has a `cash` or `ding`.
 - [ ] Check the file with `ffprobe`: 1080×1920, 30 fps, H.264 and AAC.

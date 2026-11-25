@@ -5,6 +5,7 @@ import { cpus } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { fontCss, launch } from "./browser.mjs";
+import { ensureSfx } from "./sfx.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -116,14 +117,16 @@ async function renderSegment(browser, stagePath, f0, f1, file) {
   const { page } = await openStage(browser, stagePath);
   const ow = Math.round(W * scale);
   const oh = Math.round(H * scale);
-  const size = `scale=${ow - (ow % 2)}:${oh - (oh % 2)}:flags=lanczos,format=yuv420p`;
+  const grain = spec.grain ?? 0.06;
+  const texture = grain > 0 ? `,noise=c0s=${Math.round(grain * 160)}:c0f=t+u:all_seed=${7 + f0}` : "";
+  const size = `scale=${ow - (ow % 2)}:${oh - (oh % 2)}:flags=lanczos,format=yuv420p${texture}`;
   const inputs = footage
     ? ["-ss", (f0 / FPS).toFixed(4), "-t", ((f1 - f0) / FPS).toFixed(4), "-i", footage.file, "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "png", "-i", "-",
       "-filter_complex", `[0:v]setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=3600[bg];[1:v]format=rgba[ov];[bg][ov]overlay=0:0:shortest=1,${size}`]
     : ["-f", "image2pipe", "-framerate", String(FPS), "-c:v", "png", "-i", "-", "-vf", size];
   const ff = spawn("ffmpeg", [
     "-v", "error", "-y", ...inputs,
-    "-c:v", "libx264", "-preset", has("fast") ? "veryfast" : "slow", "-crf", has("fast") ? "22" : "16",
+    "-c:v", "libx264", "-preset", has("fast") ? "veryfast" : "slow", "-crf", has("fast") ? "22" : grain > 0 ? "20" : "16", "-maxrate", "12M", "-bufsize", "24M",
     "-tune", "animation", "-profile:v", "high", "-pix_fmt", "yuv420p", "-g", String(FPS * 2), "-r", String(FPS), file,
   ], { stdio: ["pipe", "inherit", "inherit"] });
   const done = new Promise((ok, bad) => ff.on("close", (c) => (c === 0 ? ok() : bad(new Error(`ffmpeg exited ${c}`)))));
@@ -137,28 +140,54 @@ async function renderSegment(browser, stagePath, f0, f1, file) {
   await page.close();
 }
 
-function sfxFiles(tmp, info) {
-  const auto = spec.audio?.autoSfx ?? true;
-  if (!auto) return [];
+
+const SFX_RULES = {
+  kick: (e) => [{ name: e.size >= 0.1 ? "boom" : "impact", at: e.at - 0.02, gain: e.size >= 0.1 ? -13 : -12 }],
+  pop: (e) => [{ name: "pop", at: e.at, gain: -15 }],
+  pill: (e) => [{ name: "pop", at: e.at, gain: -16 }],
+  badge: (e) => [{ name: "pop", at: e.at, gain: -16 }],
+  counter: (e) => Array.from({ length: Math.max(3, Math.round((e.dur ?? 0.9) / 0.07)) }, (_, i) => ({ name: "tick", at: e.at + i * 0.07 * (1 + i * 0.04), gain: -24 - i * 0.6, minor: true })),
+  sparkle: (e) => [{ name: "sparkle", at: e.at, gain: -17 }],
+  tick: (e) => [{ name: "tick", at: e.at, gain: -17, minor: true }],
+  card: (e) => [{ name: "card", at: e.at, gain: -16, minor: true }],
+  strike: (e) => [{ name: "strike", at: e.at, gain: -12 }],
+  select: (e) => [{ name: "click", at: e.at, gain: -16, minor: true }],
+  annotate: (e) => [
+    e.shape === "cross" ? { name: "strike", at: e.at, gain: -11 }
+      : e.shape === "arrow" ? { name: "pop", at: e.at, gain: -15 }
+      : { name: e.shape === "underline" ? "pen" : "scribble", at: e.at, gain: -14 },
+  ],
+  scroll: (e) => [{ name: "whoosh-soft", at: e.at, gain: -18, minor: true }],
+  click: (e) => [{ name: "click", at: e.at, gain: -9 }],
+  custom: (e) => [{ name: e.name, at: e.at, gain: e.gain ?? -12 }],
+};
+
+function sfxFiles(info, tmp) {
+  const SFX_DIR = ensureSfx(join(tmp, "sfx"));
+  const a = spec.audio ?? {};
+  const level = a.sfxLevel ?? (a.autoSfx === false ? "off" : "full");
+  if (level === "off") return [];
   const list = [];
-  const whoosh = join(tmp, "whoosh.wav");
-  const tick = join(tmp, "tick.wav");
-  const click = join(tmp, "click.wav");
-  run("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "anoisesrc=color=pink:duration=0.55:amplitude=0.9:seed=7",
-    "-af", "highpass=f=350,lowpass=f=5200,afade=t=in:st=0:d=0.24:curve=exp,afade=t=out:st=0.24:d=0.31:curve=exp,aecho=0.6:0.4:22:0.25,pan=stereo|c0=c0|c1=c0,volume=0.55", "-ar", "48000", whoosh]);
-  run("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=f=1650:duration=0.07",
-    "-af", "afade=t=out:st=0:d=0.07:curve=exp,pan=stereo|c0=c0|c1=c0,volume=0.35", "-ar", "48000", tick]);
-  run("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "anoisesrc=color=white:duration=0.03:amplitude=1:seed=3",
-    "-af", "highpass=f=1800,afade=t=out:st=0:d=0.03,pan=stereo|c0=c0|c1=c0,volume=0.6", "-ar", "48000", click]);
   info.cues.forEach((c) => {
-    if (c.enter.startsWith("push")) list.push({ src: whoosh, at: c.start - 0.2, gain: -14 });
-    if (c.exit === "zoom") list.push({ src: whoosh, at: c.end - 0.42, gain: -16 });
+    if (c.enter === "push-right") list.push({ name: "whoosh", at: c.start - 0.12, gain: -12 });
+    if (c.enter === "push-left") list.push({ name: "whoosh-left", at: c.start - 0.12, gain: -12 });
+    if (c.enter === "iris") list.push({ name: "whoosh-soft", at: c.start - 0.08, gain: -13 });
+    if (c.exit === "blur") list.push({ name: "whoosh-soft", at: c.end - 0.45, gain: -17 });
+    if (c.exit === "zoom") list.push({ name: "riser", at: c.end - 0.9, gain: -15 }, { name: "impact", at: c.end, gain: -13 });
   });
-  info.events.forEach((e) => {
-    if (e.type === "pill" || e.type === "badge") list.push({ src: tick, at: e.at, gain: -20 });
-    if (e.type === "cta" && e.click !== undefined) list.push({ src: click, at: e.click, gain: -12 });
+  info.events.forEach((e) => list.push(...(SFX_RULES[e.type]?.(e) ?? [])));
+  const kept = [];
+  list.sort((x, y) => x.at - y.at).forEach((s) => {
+    if (s.at < 0 || (level === "subtle" && s.minor)) return;
+    const clash = kept.find((k) => k.name === s.name && Math.abs(k.at - s.at) < 0.07);
+    if (clash) return;
+    kept.push(s);
   });
-  return list;
+  return kept.map((s) => {
+    const file = existsSync(join(SFX_DIR, `${s.name}.wav`)) ? join(SFX_DIR, `${s.name}.wav`) : resolve(specDir, s.name);
+    if (!existsSync(file)) throw new Error(`Unknown sound effect "${s.name}". Built in: ${readdirSync(SFX_DIR).map((f) => f.replace(".wav", "")).join(", ")}`);
+    return { src: file, at: s.at, gain: s.gain + (level === "subtle" ? -5 : 0) + (a.sfxGain ?? 0) };
+  });
 }
 
 function mixAudio(tmp, info, duration) {
@@ -174,7 +203,7 @@ function mixAudio(tmp, info, duration) {
   if (a.voice) {
     const i = add(resolve(specDir, a.voice));
     const delay = Math.round((a.voiceOffset ?? 0) * 1000);
-    filters.push(`[${i}:a]aformat=sample_rates=48000:channel_layouts=stereo,adelay=${delay}|${delay},highpass=f=70,acompressor=threshold=-20dB:ratio=3:attack=8:release=120,asplit=2[v][vkey]`);
+    filters.push(`[${i}:a]aformat=sample_rates=48000:channel_layouts=stereo,adelay=${delay}|${delay},highpass=f=70,acompressor=threshold=-20dB:ratio=3:attack=8:release=120,asplit=3[v][vkey][fxkey]`);
     voiceLabel = "v";
     labels.push("[v]");
   }
@@ -191,13 +220,20 @@ function mixAudio(tmp, info, duration) {
   } else if (voiceLabel) {
     filters.push(`[vkey]anullsink`);
   }
-  [...sfxFiles(tmp, info), ...(a.sfx ?? []).map((s) => ({ ...s, src: resolve(specDir, s.src) }))].forEach((s, n) => {
-    if (s.at < 0) return;
+  const fx = [...sfxFiles(info, tmp), ...(a.sfx ?? []).map((s) => ({ ...s, src: resolve(specDir, s.src) }))].filter((s) => s.at >= 0);
+  fx.forEach((s, n) => {
     const i = add(s.src);
     const d = Math.round(s.at * 1000);
-    filters.push(`[${i}:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=${s.gain ?? -12}dB,adelay=${d}|${d}[s${n}]`);
-    labels.push(`[s${n}]`);
+    filters.push(`[${i}:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=${s.gain ?? -12}dB,adelay=${d}|${d},apad=whole_dur=${duration}[s${n}]`);
   });
+  if (fx.length) {
+    filters.push(`${fx.map((_, n) => `[s${n}]`).join("")}amix=inputs=${fx.length}:normalize=0:dropout_transition=0,atrim=0:${duration}[fxraw]`);
+    filters.push(voiceLabel ? `[fxraw][fxkey]sidechaincompress=threshold=0.05:ratio=2.5:attack=5:release=180[fx]` : `[fxraw]anull[fx]`);
+    labels.push("[fx]");
+  } else if (voiceLabel) {
+    filters.push(`[fxkey]anullsink`);
+  }
+  console.log(`sound: ${fx.length} effects placed`);
   if (!labels.length) return null;
   const mixed = join(tmp, "mix.wav");
   filters.push(`${labels.join("")}amix=inputs=${labels.length}:normalize=0:dropout_transition=0,apad,atrim=0:${duration}[mix]`);
